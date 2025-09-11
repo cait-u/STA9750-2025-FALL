@@ -1,0 +1,12 @@
+---
+title: "Hi! Welcome to Caitiverse~"
+---
+
+I am a Baruch student in the MS Business Analytics program with a concentration in Marketing Analytics.
+
+```{r}
+#| include: false
+1+1
+```
+--------------
+Last Updated: `r format(Sys.time(), "%A %m %d, %Y at %H:%M%p")`
