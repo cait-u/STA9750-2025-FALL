@@ -2,6 +2,7 @@
 title: "mp01"
 ---
 
+```{r}
 if(!dir.exists(file.path("data", "mp01"))){
     dir.create(file.path("data", "mp01"), showWarnings=FALSE, recursive=TRUE)
 }
@@ -25,3 +26,4 @@ library(readr)
 library(dplyr)
 
 GLOBAL_TOP_10 <- read_tsv(GLOBAL_TOP_10_FILENAME)
+```
