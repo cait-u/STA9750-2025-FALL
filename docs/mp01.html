@@ -248,6 +248,26 @@ $ weekly_views               &lt;dbl&gt; 19300000, 10300000, 7600000, 6500000, 6
 $ cumulative_weeks_in_top_10 &lt;dbl&gt; 15, 1, 3, 5, 2, 1, 1, 1, 1, 3, 2, 1, 1, 2, …</code></pre>
 </div>
 </div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>GLOBAL_TOP_10 <span class="ot">&lt;-</span> GLOBAL_TOP_10 <span class="sc">|&gt;</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">season_title =</span> <span class="fu">if_else</span>(season_title <span class="sc">==</span> <span class="st">"N/A"</span>, <span class="cn">NA</span>, season_title))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(GLOBAL_TOP_10)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rows: 8,880
+Columns: 9
+$ week                       &lt;date&gt; 2025-09-28, 2025-09-28, 2025-09-28, 2025-0…
+$ category                   &lt;chr&gt; "Films (English)", "Films (English)", "Film…
+$ weekly_rank                &lt;dbl&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, …
+$ show_title                 &lt;chr&gt; "KPop Demon Hunters", "Ruth &amp; Boaz", "The W…
+$ season_title               &lt;chr&gt; NA, NA, NA, NA, NA, NA, NA, NA, NA, "aka Ch…
+$ weekly_hours_viewed        &lt;dbl&gt; 32200000, 15900000, 13500000, 15700000, 112…
+$ runtime                    &lt;dbl&gt; 1.6667, 1.5500, 1.7833, 2.4333, 1.8333, 1.7…
+$ weekly_views               &lt;dbl&gt; 19300000, 10300000, 7600000, 6500000, 61000…
+$ cumulative_weeks_in_top_10 &lt;dbl&gt; 15, 1, 3, 5, 2, 1, 1, 1, 1, 3, 2, 1, 1, 2, …</code></pre>
+</div>
+</div>
 
 
 

@@ -37,3 +37,13 @@ str(GLOBAL_TOP_10)
 ```{r}
 glimpse(GLOBAL_TOP_10)
 ```
+```{r}
+GLOBAL_TOP_10 <- GLOBAL_TOP_10 |>
+    mutate(season_title = if_else(season_title == "N/A", NA, season_title))
+```
+
+```{r}
+glimpse(GLOBAL_TOP_10)
+```
+
+
