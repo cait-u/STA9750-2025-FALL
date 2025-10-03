@@ -1,5 +1,5 @@
 ---
-title: "mp01"
+title: "STA 9750 — Mini-Project 01"
 ---
 
 ```{r}
@@ -22,7 +22,6 @@ if(!file.exists(COUNTRY_TOP_10_FILENAME)){
 }
 ```
 
-
 ```{r}
 if(!require("tidyverse")) install.packages("tidyverse")
 library(readr)
@@ -38,4 +37,3 @@ str(GLOBAL_TOP_10)
 ```{r}
 glimpse(GLOBAL_TOP_10)
 ```
-
