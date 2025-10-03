@@ -37,6 +37,7 @@ str(GLOBAL_TOP_10)
 ```{r}
 glimpse(GLOBAL_TOP_10)
 ```
+
 ```{r}
 GLOBAL_TOP_10 <- GLOBAL_TOP_10 |>
     mutate(season_title = if_else(season_title == "N/A", NA, season_title))
@@ -53,12 +54,14 @@ COUNTRY_TOP_10 <- COUNTRY_TOP_10 |>
 glimpse(COUNTRY_TOP_10)
 
 ```
+
 ```{r}
 library(DT)
 GLOBAL_TOP_10 |> 
     head(n=20) |>
     datatable(options=list(searching=FALSE, info=FALSE))
 ```
+
 ```{r}
 library(stringr)
 format_titles <- function(df){
@@ -72,6 +75,7 @@ GLOBAL_TOP_10 |>
     datatable(options=list(searching=FALSE, info=FALSE)) |>
     formatRound(c('Weekly Hours Viewed', 'Weekly Views'))
 ```
+
 ```{r}
 GLOBAL_TOP_10 |> 
     mutate(`runtime_(minutes)` = round(60 * runtime)) |>
@@ -82,4 +86,28 @@ GLOBAL_TOP_10 |>
     datatable(options=list(searching=FALSE, info=FALSE)) |>
     formatRound(c('Weekly Hours Viewed', 'Weekly Views'))
 ```
-1. How many different countries does Netflix operate in?
+
+```{r}
+library(dplyr)
+
+#Question 1
+countries_count <- COUNTRY_TOP_10 %>%
+  distinct(country_name) %>%
+  nrow()
+
+#Question 2
+non_english <- GLOBAL_TOP_10 %>%
+  
+```
+## Exploratory Questions
+
+1.  How many different countries does Netflix operate in?
+
+Netflix operates in `{r} countries_count` countries.
+
+2. Which non-English-language film has spent the most cumulative weeks in the global top 10? How many weeks did it spend?
+
+The non-English-language film that spent the longest time in the global top 10 is `{r} non_english` at `{r} non_english_longest` weeks.
+
+
+
