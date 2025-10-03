@@ -20,10 +20,22 @@ if(!file.exists(COUNTRY_TOP_10_FILENAME)){
     download.file("https://www.netflix.com/tudum/top10/data/all-weeks-countries.tsv", 
                   destfile=COUNTRY_TOP_10_FILENAME)
 }
+```
 
+
+```{r}
 if(!require("tidyverse")) install.packages("tidyverse")
 library(readr)
 library(dplyr)
 
 GLOBAL_TOP_10 <- read_tsv(GLOBAL_TOP_10_FILENAME)
 ```
+
+```{r}
+str(GLOBAL_TOP_10)
+```
+
+```{r}
+glimpse(GLOBAL_TOP_10)
+```
+
