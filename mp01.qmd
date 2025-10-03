@@ -1,5 +1,18 @@
 ---
 title: "STA 9750 — Mini-Project 01"
+author: "Caitlin Uang"
+date: "`r Sys.Date()`"
+format:
+  html:
+    theme: default
+    code-fold: true
+    code-summary: "Show code"
+    embed-resources: true
+editor: visual
+execute:
+  warning: false
+  message: false
+  echo: true
 ---
 
 ```{r}
@@ -91,23 +104,69 @@ GLOBAL_TOP_10 |>
 library(dplyr)
 
 #Question 1
-countries_count <- COUNTRY_TOP_10 %>%
-  distinct(country_name) %>%
+countries_count <- COUNTRY_TOP_10 |>
+  distinct(country_name) |>
   nrow()
 
 #Question 2
-non_english <- GLOBAL_TOP_10 %>%
-  
+non_english <- GLOBAL_TOP_10 |>
+  mutate(Language = str_extract(category, "\\((.*)\\)"),
+         Language = str_replace_all(Language, "[()]", "")) |>
+  filter(str_detect(category, "Film"), Language != "English") |>
+  group_by(show_title) |>
+  summarise(total_weeks = sum(cumulative_weeks_in_top_10, na.rm = TRUE)) |>
+  arrange(desc(total_weeks)) |>
+  slice(1)
+
+#Question 3
+longest_film <- GLOBAL_TOP_10 |>
+  filter(str_detect(category, "Film")) |>
+  arrange(desc(runtime)) |>
+  slice(1)
+
+#Questions 4
+library(scales)
+total_hours <- GLOBAL_TOP_10 |>
+  group_by(category, show_title) |>
+  summarise(total_hours = sum(weekly_hours_viewed, na.rm = TRUE), .groups = "drop") |>
+  group_by(category) |>
+  slice_max(total_hours, n = 1) |>
+  ungroup() |>
+  format_titles() |>
+  mutate(`Total Hours` = comma(`Total Hours`))
+
+#Question 5
+
+
 ```
+
 ## Exploratory Questions
 
-1.  How many different countries does Netflix operate in?
+1. How many different countries does Netflix operate in?
 
-Netflix operates in `{r} countries_count` countries.
+Netflix operates in `r countries_count` countries.
 
 2. Which non-English-language film has spent the most cumulative weeks in the global top 10? How many weeks did it spend?
 
-The non-English-language film that spent the longest time in the global top 10 is `{r} non_english` at `{r} non_english_longest` weeks.
+The non-English-language film that spent the longest time in the global top 10 is `r non_english$show_title` at `r non_english$total_weeks` weeks.
 
+3. What is the longest film (English or non-English) to have ever appeared in the Netflix global Top 10? How long is it in minutes?
 
+The longest film to have ever appeared in the global top 10 is `r longest_film$show_title` at `r longest_film$runtime` minutes.
+
+4. For each of the four categories, what program has the most total hours of global viewership?
+
+```{r}
+total_hours |>
+  DT::datatable(
+    options = list(
+      pageLength = 10,
+      searching = TRUE,
+      info = TRUE
+    )
+  )
+```
+5. Which TV show had the longest run in a country’s Top 10? How long was this run and in what country did it occur?
+
+The longest running TV
 
