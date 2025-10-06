@@ -282,47 +282,6 @@ st_total_weeks <- GLOBAL_TOP_10 |>
 
 ```
 Netflix announced the return of its global phenomenon *Stranger Things* with its fifth and final season, inviting audiences one last time into the Upside Down. Since its debut, the series has garnered over **`r st_total_hours` total viewing hours**, captivating viewers worldwide. This global phenomenon has appeared in the **Top 10 in over `r st_total_countries` countries** and has been in **Netflix's Global Top 10 for over `r st_total_weeks` total weeks**. With its multinational appeal, *Stranger Things* is one of Netflix's most popular hits alongside other shows like *Wednesday* and *Adolescence*. 
-```{r}
-library(ggplot2)
-library(stringr)
-
-english_tv_stats <- GLOBAL_TOP_10 |>
-  filter(category == "TV") |>
-  group_by(show_title) |>
-  summarise(
-    total_hours = sum(weekly_hours_viewed, na.rm = TRUE),
-    total_weeks = sum(cumulative_weeks_in_top_10, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  arrange(desc(total_hours))
-
-top10_tv <- english_tv_stats |> slice_max(total_hours, n = 10)
-
-
-top10_tv$show_title <- factor(top10_tv$show_title, levels = top10_tv$show_title[order(-top10_tv$total_hours)])
-
-ggplot(
-  top10_tv,
-  aes(
-    x = show_title,
-    y = total_hours,
-    fill = factor(ifelse(show_title == "Stranger Things", "Stranger Things", "Other"))
-  )
-) +
-  geom_col(show.legend = FALSE) +
-  geom_text(aes(label = scales::comma(total_hours)), vjust = -0.5, size = 3.5) +
-  scale_fill_manual(values = c("Stranger Things" = "#FF0000", "Other" = "#1f77b4")) +
-  scale_y_continuous(labels = scales::comma) +
-  labs(
-    title = "Top 10 Most-Watched English-Language TV Shows on Netflix",
-    x = "TV Show",
-    y = "Total Viewing Hours"
-  ) +
-  theme_minimal(base_size = 14) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-
-```
 
 
 ## Netflix India Rapid Growth Thanks to Recent Successes of Hindi-Language Programs
@@ -409,7 +368,7 @@ co_total_views <- GLOBAL_TOP_10 |>
 co_total_views_fmt <- format(co_total_views, big.mark = ",", scientific = FALSE)
 ```
 
-Taking the world by storm, Netflix's *K-Pop Demon Hunters* is shattering streaming records across the globe. The movie currently tops the Netflix Top 10 charts in **`r kdh_total_countries` countries**, garnering over **`r kdh_total_views_fmt` views** globally in its debut weeks, and has spent **`r kdh_total_weeks` cumulative weeks** in the Top 10. The combination of music and animation has resonated to both kids and adults alike. *K-Pop Demon Hunters* has outperformed previous top movies such as *Red Notice (2021)* at **`r red_notice_total` views** and *Carry-On (2024)* at **`r co_total_views_fmt` views**.
+Taking the world by storm, Netflix's *K-Pop Demon Hunters* is shattering streaming records across the globe. The movie currently tops the Netflix Top 10 charts in **`r kdh_total_countries` countries**, garnering over **`r kdh_total_views_fmt` views** globally in its debut weeks, and has spent **`r kdh_total_weeks` cumulative weeks** in the Top 10. The combination of music and animation has resonated to both kids and adults alike. *K-Pop Demon Hunters* has outperformed previous top movies such as *Red Notice (2021)* at **`r red_notice_total` views** and *Carry-On (2024)* at **`r co_total_views_fmt` views** and continues to set new records for global engagement.
 
 
 
