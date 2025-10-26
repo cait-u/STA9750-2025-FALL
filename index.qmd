@@ -1,8 +1,8 @@
 ---
-title: "Hi! Welcome to Caitiverse~"
+title: "Hi! Welcome to my Portfolio"
 ---
 
-I am a Baruch student in the MS Business Analytics program with a concentration in Marketing Analytics.
+I'm Caitlin Uang. I am a Baruch student in the MS Business Analytics program with a concentration in Marketing Analytics.
 
 ```{r}
 #| include: false
