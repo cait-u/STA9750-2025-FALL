@@ -371,7 +371,7 @@ high_income <- base_total |>
 
 ```
 
-In 2015, the state with highest individual income was **`r high_income$state`** with an average income of $`r scales::comma(round(high_income$avg_income, 0))\`.
+In 2015, the state with highest individual income was **`r high_income$state`** with an average income of $`r scales::comma(round(high_income$avg_income, 0))`.
 
 #### 4. What is the last year in which the NYC CBSA had the most data scientists in the country?
 
@@ -409,7 +409,7 @@ ggplot(rent_income_2009, aes(x = household_income, y = monthly_rent)) +
 
 #### 2. The relationship between total employment and total employment in the health care and social services sector (NAICS 62) across different CBSAs.
 
-TEST TEST TEST
+Test
 
 #### 3.The evolution of average household size over time. Use different lines to represent different CBSAs.
 
