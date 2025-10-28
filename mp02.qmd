@@ -18,8 +18,6 @@ execute:
 
 ## Introduction and Background
 
-
-
 ## Data Acquisition
 
 #### Household Demographic and Economic Indicators from American Community Survey (ACS)
@@ -83,7 +81,9 @@ POPULATION <- get_acs_all_years("B01003_001") |>
 HOUSEHOLDS <- get_acs_all_years("B11001_001") |>
     rename(households = B11001_001)
 ```
+
 #### Number of New Housing Unit Built Each Year
+
 ```{r}
 # Number of new housing built each year
 get_building_permits <- function(start_year = 2009, end_year = 2023){
@@ -292,11 +292,13 @@ get_bls_qcew_annual_averages <- function(start_year=2009, end_year=2023){
 
 WAGES <- get_bls_qcew_annual_averages()
 ```
+
 ## Data Integration and Initial Exploration
 
 ### Multi-Table Questions
 
 #### 1. Which CBSA (by name) permitted the largest number of new housing units in the decade from 2010 to 2019 (inclusive)?
+
 ```{r}
 # CBSA by name permitted largest number of new housing unit 2010-2019
 top_CBSA <- PERMITS |>
@@ -311,9 +313,11 @@ top_CBSA <- PERMITS |>
 library(DT)
 datatable(top_CBSA)
 ```
+
 The CSBA (by name) that permitted the largest number of new housing units from 2010 to 2019 is **CSBA code 26420** known as the **Houston-Sugar Land-Baytown, TX Metro Area, at 482,075 permits**.
 
 #### 2. In what year did Albuquerque, NM (CBSA Number 10740) permit the most new housing units?
+
 ```{r}
 nm_permit <- PERMITS |>
   filter(CBSA == 10740) |>
@@ -322,9 +326,11 @@ nm_permit <- PERMITS |>
   arrange(desc(total_permits)) |>
   slice_head(n = 1)
 ```
+
 Albuquerque, NM (CBSA number 10740) permitted the most new housing units in **`r nm_permit$year`**, with **`r nm_permit$total_permits`** units.
 
-#### 3. Which state (not CBSA) had the highest average individual income in 2015? 
+#### 3. Which state (not CBSA) had the highest average individual income in 2015?
+
 ```{r}
 library(dplyr)
 library(stringr)
@@ -364,10 +370,10 @@ high_income <- base_total |>
 
 
 ```
-In 2015, the state with highest individual income was **`r high_income$state`** with an average income of **$`r scales::comma(round(high_income$avg_income, 0))`**.
+
+In 2015, the state with highest individual income was **`r high_income$state`** with an average income of **$`r scales::comma(round(high_income$avg_income, 0))**.
 
 #### 4. What is the last year in which the NYC CBSA had the most data scientists in the country?
-
 
 #### 5. What fraction of total wages in the NYC CBSA was earned by people employed in the finance and insurance industries (NAICS code 52)? In what year did this fraction peak?
 
@@ -375,6 +381,7 @@ In 2015, the state with highest individual income was **`r high_income$state`** 
 
 #### The relationship between monthly rent and average household income per CBSA in 2009.
 Households with higher average household income are typically associated with higher monthly rent across different CSBAs. As seen with this visualization, wealthier households live in a more expensive housing area.
+
 ```{r}
 library(dplyr)
 library(ggplot2)
@@ -405,7 +412,6 @@ ggplot(rent_income_2009, aes(x = household_income, y = monthly_rent)) +
 A strong positive relationship is observed between total employment and the employment in the health care and social service sector across CBSAs. This can indicate that the larger the labor market , the greater amount of workers there are in this sector. 
 
 ```{r}
-
 
 # Filter healthcare sector and summarize by year
 healthcare <- WAGES |>
@@ -449,7 +455,12 @@ ggplot(healthcare_total, aes(x = total_employment, y = healthcare_employment, co
 #### The evolution of average household size over time. Use different lines to represent different CBSAs.
 
 ```{r}
+# create table combining POPULATION and HOUSEHOLDS
+glimpse(HOUSEHOLDS)
+glimpse(POPULATION)
 
+
+```
 
 ## Building Indices of Housing Affordability and Housing Stock 
 
@@ -460,5 +471,4 @@ ggplot(healthcare_total, aes(x = total_employment, y = healthcare_employment, co
 ### Visualization
 
 ## Policy Brief
-
 
