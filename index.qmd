@@ -2,7 +2,7 @@
 title: "Hi! Welcome to my Portfolio"
 ---
 
-I'm Caitlin Uang. I am a Baruch student in the MS Business Analytics program with a concentration in Marketing Analytics.
+I'm Caitlin Uang. I am a Baruch student in the MS Business Analytics program with a concentration in Marketing Analytics. t
 
 ```{r}
 #| include: false
