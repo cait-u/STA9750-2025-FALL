@@ -311,7 +311,8 @@ top_CBSA <- PERMITS |>
 
 # Create an interactive datatable
 library(DT)
-datatable(top_CBSA)
+datatable(top_CBSA, 
+          caption = "CBSA by name permitted largest number of new housing unit 2010-2019")
 ```
 
 The CSBA (by name) that permitted the largest number of new housing units from 2010 to 2019 is **CSBA code 26420** known as the **Houston-Sugar Land-Baytown, TX Metro Area, at 482,075 permits**.
@@ -319,15 +320,24 @@ The CSBA (by name) that permitted the largest number of new housing units from 2
 #### 2. In what year did Albuquerque, NM (CBSA Number 10740) permit the most new housing units?
 
 ```{r}
+# Filter and summarize Albuqurque, NM permit data
 nm_permit <- PERMITS |>
   filter(CBSA == 10740) |>
   group_by(year) |>
   summarize(total_permits = sum(new_housing_units_permitted, na.rm = TRUE), .groups = "drop") |>
-  arrange(desc(total_permits)) |>
-  slice_head(n = 1)
+  arrange(desc(total_permits))
+
+# Create an interactive datatable
+datatable(nm_permit, 
+          caption = "New Housing Units Permitted in Albuquerque, NM (CBSA 10740)")
+
+# Identify the top year
+top_nm_permit <- nm_permit |>
+  slice_max(total_permits, n = 1)
 ```
 
-Albuquerque, NM (CBSA number 10740) permitted the most new housing units in **`r nm_permit$year`**, with **`r nm_permit$total_permits`** units.
+Albuquerque, NM (CBSA number 10740) permitted the most new housing units in **`r top_nm_permit$year`**, 
+with **`r top_nm_permit$total_permits`** units.
 
 #### 3. Which state (not CBSA) had the highest average individual income in 2015?
 
@@ -335,6 +345,8 @@ Albuquerque, NM (CBSA number 10740) permitted the most new housing units in **`r
 library(dplyr)
 library(stringr)
 library(tibble)
+library(scales)
+library(DT)
 
 # extracting state abbreviation from CBSA name
 extract_state <- function(name) {
@@ -342,14 +354,16 @@ extract_state <- function(name) {
 }
 
 # define state abbreviation to full state name
-state_df <- data.frame(abb  = c(state.abb, "DC", "PR"),
-                       name = c(state.name, "District of Columbia", "Puerto Rico"))
+state_df <- data.frame(
+  abb  = c(state.abb, "DC", "PR"),
+  name = c(state.name, "District of Columbia", "Puerto Rico")
+)
 
 # total income in 2015
 base_total <- INCOME |>
   filter(year == 2015) |>
-  left_join(HOUSEHOLDS |> filter(year == 2015), by = c("GEOID","NAME","year")) |>
-  left_join(POPULATION |> filter(year == 2015), by = c("GEOID","NAME","year")) |>
+  left_join(HOUSEHOLDS |> filter(year == 2015), by = c("GEOID", "NAME", "year")) |>
+  left_join(POPULATION |> filter(year == 2015), by = c("GEOID", "NAME", "year")) |>
   mutate(
     state = extract_state(NAME),
     total_income = household_income * households
@@ -365,15 +379,73 @@ high_income <- base_total |>
   ) |>
   mutate(avg_income = total_income / total_population) |>
   arrange(desc(avg_income)) |>
-  left_join(state_df, by = c("state" = "abb")) |>
-  slice_head(n = 1)
+  left_join(state_df, by = c("state" = "abb")) |> 
+  mutate(
+    total_income = scales::dollar(total_income, accuracy = 1),
+    avg_income = scales::dollar(avg_income, accuracy = 1)
+  )
 
+# Create an interactive datatable
+datatable(high_income, caption = "Average and Total Income by State (2015)")
+
+# Identify the top state
+top_income <- base_total |>
+  group_by(state) |>
+  summarise(
+    total_income = sum(total_income, na.rm = TRUE),
+    total_population = sum(population, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(avg_income = total_income / total_population) |>
+  slice_max(avg_income, n = 1)
 
 ```
 
-In 2015, the state with highest individual income was **`r high_income$state`** with an average income of $`r scales::comma(round(high_income$avg_income, 0))`.
+In 2015, the state with highest individual income was **`r top_income$state`** with an average income of **$`r scales::comma(round(top_income$avg_income, 0))`**.
 
 #### 4. What is the last year in which the NYC CBSA had the most data scientists in the country?
+```{r}
+acs_key <- INCOME |>
+  filter(year == max(year, na.rm = TRUE)) |>
+  select(GEOID, NAME) |>
+  distinct() |>
+  mutate(std_cbsa = paste0("C", GEOID))
+
+# Leaders by year for NAICS 5182
+leaders_5182 <- WAGES |>
+  filter(INDUSTRY == 5182) |>
+  group_by(FIPS, YEAR, INDUSTRY) |>
+  summarise(EMP_DS = sum(EMPLOYMENT, na.rm = TRUE), .groups = "drop") |>
+  # Pad BLS CBSA code: "C3562" -> "C35620" to match ACS
+  mutate(std_cbsa = if_else(nchar(FIPS) == 5, paste0(FIPS, "0"), FIPS)) |>
+  arrange(YEAR, desc(EMP_DS)) |>
+  group_by(YEAR) |>
+  slice_max(order_by = EMP_DS, n = 1, with_ties = FALSE) |>
+  ungroup() |>
+  left_join(acs_key, by = "std_cbsa") |>
+  select(std_cbsa, YEAR, INDUSTRY, EMP_DS, GEOID, NAME)
+
+#  Identify last year NY led
+nyc_last_year <- leaders_5182 |>
+  filter(std_cbsa == "C35620") |>
+  summarise(last_year_led = max(YEAR, na.rm = TRUE)) |>
+  slice_max(last_year_led, n = 1)
+
+# Create an interactive datatable
+leaders_5182_tbl <- leaders_5182 |>
+  dplyr::transmute(
+    Year = YEAR,
+    `CBSA Code` = std_cbsa,
+    `CBSA Name` = NAME,
+    `NAICS` = INDUSTRY,
+    `Employment (NAICS 5182)` = EMP_DS
+  ) |>
+  dplyr::arrange(Year)
+
+datatable(leaders_5182_tbl,
+  caption = "Yearly leader by employment in NAICS 5182")
+```
+The last year the NYC CSBA had the most data scientist was **`r nyc_last_year$last_year_led`**.
 
 #### 5. What fraction of total wages in the NYC CBSA was earned by people employed in the finance and insurance industries (NAICS code 52)? In what year did this fraction peak?
 
@@ -392,7 +464,7 @@ rent_income_2009 <- RENT |>
   left_join(INCOME |> filter(year == 2009), by = c("GEOID", "NAME", "year")) |>
   drop_na(monthly_rent, household_income)
 
-# create scatterplot
+# Create scatterplot
 ggplot(rent_income_2009, aes(x = household_income, y = monthly_rent)) +
   geom_point(alpha = 0.6, size = 2, color = "lightgreen") +
   geom_smooth(method = "lm", se = TRUE, color = "darkgreen", linewidth = 0.8) +
@@ -409,16 +481,43 @@ ggplot(rent_income_2009, aes(x = household_income, y = monthly_rent)) +
 
 #### 2. The relationship between total employment and total employment in the health care and social services sector (NAICS 62) across different CBSAs.
 
-Test
+```{r}
+# Filter relevant industries and summarize by year + CBSA
+health_employment <- WAGES |>
+  filter(INDUSTRY == 62) |>
+  group_by(FIPS, YEAR) |>
+  summarise(health_emp = sum(EMPLOYMENT, na.rm = TRUE), .groups = "drop")
+
+total_employment <- WAGES |>
+  group_by(FIPS, YEAR) |>
+  summarise(total_emp = sum(EMPLOYMENT, na.rm = TRUE), .groups = "drop")
+
+employment_joined <- total_employment |>
+  left_join(health_employment, by = c("FIPS", "YEAR")) |>
+  mutate(health_share = health_emp / total_emp)
+
+
+# Create scatterplot
+ggplot(employment_joined, aes(x = total_emp, y = health_emp)) +
+  geom_point(color = "steelblue") +
+  geom_smooth(method = "lm", se = FALSE, color = "darkred") +
+  labs(
+    title = "Health Care & Social Assistance Employment vs. Total Employment",
+    x = "Total Employment",
+    y = "Employment in NAICS 62 (Health Care & Social Services)"
+  ) +
+  theme_minimal()
+
+```
 
 #### 3.The evolution of average household size over time. Use different lines to represent different CBSAs.
 
-### Building Indices of Housing Affordability and Housing Stock
+## Building Indices of Housing Affordability and Housing Stock
 
-#### Rent Burden
+### Rent Burden
 
-#### Housing Growth
+### Housing Growth
 
-#### Visualization
+### Visualization
 
-### Policy Brief
+## Policy Brief
