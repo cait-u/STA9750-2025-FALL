@@ -1,5 +1,8 @@
 ---
 title: "Hi! Welcome to my Portfolio"
+format:
+  html:
+    embed-resources: true
 ---
 
 I'm Caitlin Uang. I am a Baruch student in the MS Business Analytics program with a concentration in Marketing Analytics.
