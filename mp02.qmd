@@ -336,8 +336,7 @@ top_nm_permit <- nm_permit |>
   slice_max(total_permits, n = 1)
 ```
 
-Albuquerque, NM (CBSA number 10740) permitted the most new housing units in **`r top_nm_permit$year`**, 
-with **`r top_nm_permit$total_permits`** units.
+Albuquerque, NM (CBSA number 10740) permitted the most new housing units in **`r top_nm_permit$year`**, with **`r top_nm_permit$total_permits`** units.
 
 #### 3. Which state (not CBSA) had the highest average individual income in 2015?
 
@@ -401,9 +400,10 @@ top_income <- base_total |>
 
 ```
 
-In 2015, the state with highest individual income was **`r top_income$state`** with an average income of **$`r scales::comma(round(top_income$avg_income, 0))`**.
+In 2015, the state with highest individual income was **`r top_income$state`** with an average income of $`r scales::comma(round(top_income$avg_income, 0))`.
 
 #### 4. What is the last year in which the NYC CBSA had the most data scientists in the country?
+
 ```{r}
 acs_key <- INCOME |>
   filter(year == max(year, na.rm = TRUE)) |>
@@ -416,7 +416,6 @@ leaders_5182 <- WAGES |>
   filter(INDUSTRY == 5182) |>
   group_by(FIPS, YEAR, INDUSTRY) |>
   summarise(EMP_DS = sum(EMPLOYMENT, na.rm = TRUE), .groups = "drop") |>
-  # Pad BLS CBSA code: "C3562" -> "C35620" to match ACS
   mutate(std_cbsa = if_else(nchar(FIPS) == 5, paste0(FIPS, "0"), FIPS)) |>
   arrange(YEAR, desc(EMP_DS)) |>
   group_by(YEAR) |>
@@ -445,6 +444,7 @@ leaders_5182_tbl <- leaders_5182 |>
 datatable(leaders_5182_tbl,
   caption = "Yearly leader by employment in NAICS 5182")
 ```
+
 The last year the NYC CSBA had the most data scientist was **`r nyc_last_year$last_year_led`**.
 
 #### 5. What fraction of total wages in the NYC CBSA was earned by people employed in the finance and insurance industries (NAICS code 52)? In what year did this fraction peak?
