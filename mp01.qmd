@@ -1,5 +1,6 @@
 ---
-title: "STA 9750 — Mini-Project 01"
+title: "Mini-Project 01"
+subtitle: "Gourmet Cheeseburgers Across the Globe: Exploring the Most Popular Programming on Netflix"
 author: "Caitlin Uang"
 date: "`r Sys.Date()`"
 format:
