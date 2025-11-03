@@ -1056,6 +1056,8 @@ Middle-income workers such as Teachers and Municipal Workers who spend around 30
 
 #### Construction Workers
 Construction workers represent a large workforce in both Houston, TX and New York City, NYC. By increasing housing in these areas, it directly inreases construction projects which benefits the worker and also proivde affordable housing of those in the occupation. A report finds that residential construction outlays support about 21.66 jobs per $1 million in direct outlays.
+
+
 ### Metrics for Targeted Funding
 
 #### Rent Burden Index
