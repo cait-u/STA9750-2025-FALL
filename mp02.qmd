@@ -630,9 +630,9 @@ ggplotly(plot, tooltip = c("NAME_short", "year", "hh_size"))
 
 ### Rent Burden
 
-#### Chicago Metro Area Rent Burden Change Over Time
+#### NYC Metro Area Rent Burden Change Over Time
 
-For the Chicago Metro Area, the rent burden shows how housing costs relative to income have evolved over time. Years with higher rent burden values indicate that residents faced a greater share of income spent on rent, while lower values indicate more affordable housing. From 2019 to 2023, the Rent Burden Index has increased from **22.5** to **26.4**. The interactive table highlights both Rent as % Income and the standardized 0–100 Rent Burden Index.
+For the NYC Metro Area, the rent burden shows how housing costs relative to income have evolved over time. Years with higher rent burden values indicate that residents faced a greater share of income spent on rent, while lower values indicate more affordable housing. From 2019 to 2023, the Rent Burden Index has increased from **35.1** to **38.3**. The interactive table highlights both Rent as % Income and the standardized 0–100 Rent Burden Index.
 
 ```{r}
 
@@ -655,9 +655,9 @@ rent_income <- rent_income |>
     rent_index = scales::rescale(rent_burden, to = c(0, 100))  # Linear 0–100
   )
 
-# Pick Chicago for my metro area of choice
+# Pick NYC for my metro area of choice
 metro_table <- rent_income |>
-  filter(GEOID == "16980") |>
+  filter(GEOID == "35620") |>
   arrange(year) |>
   mutate(
     rent_burden_pct = scales::percent(rent_burden, 0.1),
@@ -669,7 +669,7 @@ metro_table <- rent_income |>
 datatable(
   metro_table,
   rownames = FALSE,
-  caption = "Rent Burden Over Time — Chicago Metro Area",
+  caption = "Rent Burden Over Time — NYC Metro Area",
   colnames = c("Year", "Rent as % Income", "Rent Burden Index"),
   options = list(pageLength = 10, autoWidth = TRUE)
 )
@@ -999,7 +999,7 @@ ggplot(yimby_data, aes(x = composite_index, y = -rent_change)) +
   theme_minimal()
 
 ```
-####
+#### Rent Burden Index Change vs Population Growth
 
 ```{r}
 library(ggplot2)
@@ -1044,15 +1044,18 @@ Housing affordability is one of the greatest economic and social challenges in t
 ### Proposed Sponsors
 
 #### Primary Sponsor
+A Representative from **Houston, TX** is the perfect sponsor to highlight the importance of a YIMBY program as seen in their success in issuing over 482,000 housing permits in a span of almost a decade, permitting the largest number of new housings from 2010 to 2019.
 
 #### Co-sponsor
+In contrast, a representative from **New York City, NY**  would bring great reasoning for a need for a federal YIMBY program to alleviate the rent burden in NYC households. As a city with high rent burden and low housing development, households renters spend approximately 31% of their income on rent. With the promotion of this program, outdated zoning may be updated to allow for more new housing developments.
 
 ### Support Groups
 
-#### Group 1
+#### Teachers and Municipal Workers
+Middle-income workers such as Teachers and Municipal Workers who spend around 30% of their income on rent have significant rent burden. The National Council on Teacher Quality shows that in 72 large urban districts, rental costs rose ~51% while teacher salaries only grew ~24%.Lower housing cost can lead to better retention, less stress and, provide better education and workforce for all.
 
-#### Group 2
-
+#### Construction Workers
+Construction workers represent a large workforce in both Houston, TX and New York City, NYC. By increasing housing in these areas, it directly inreases construction projects which benefits the worker and also proivde affordable housing of those in the occupation. A report finds that residential construction outlays support about 21.66 jobs per $1 million in direct outlays.
 ### Metrics for Targeted Funding
 
 #### Rent Burden Index
@@ -1062,3 +1065,4 @@ This index measures the cost of rent as % income over a 5-year period. It is sta
 The Housing Growth Index utilizes the Composite Index which is an average of Instantaneous Growth Index, measured as new housing units relative to current population, and Rate Based Growth Index, measured as new housing units relative to population growth over the same period. It is standardized to 0-100 scale to compare across CBSAs. An above-average lower Housing Growth Index (HBI) indicates successful YIMBY policies.
 
 #### Conclusion
+A sponsor from Houston, TX and New York City, NY each can strengthen the plea for a federal YIMBY program. Focusing on large Metro areas can bring forth change that can positively improve the country's housing crisis and decrease overall rent burden. The the program would benefit both residents and local workforces.
