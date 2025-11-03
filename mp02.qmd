@@ -1066,5 +1066,5 @@ This index measures the cost of rent as % income over a 5-year period. It is sta
 #### Housing Growth Index
 The Housing Growth Index utilizes the Composite Index which is an average of Instantaneous Growth Index, measured as new housing units relative to current population, and Rate Based Growth Index, measured as new housing units relative to population growth over the same period. It is standardized to 0-100 scale to compare across CBSAs. An above-average lower Housing Growth Index (HBI) indicates successful YIMBY policies.
 
-#### Conclusion
+### Conclusion
 A sponsor from Houston, TX and New York City, NY each can strengthen the plea for a federal YIMBY program. Focusing on large Metro areas can bring forth change that can positively improve the country's housing crisis and decrease overall rent burden. The the program would benefit both residents and local workforces.
