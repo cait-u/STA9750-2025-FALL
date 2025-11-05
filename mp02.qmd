@@ -371,7 +371,11 @@ high_income <- base_total |>
 
 ```
 
+<<<<<<< HEAD
 In 2015, the state with highest individual income was **`r high_income$state`** with an average income of **$`r scales::comma(round(high_income$avg_income, 0))**.
+=======
+In 2015, the state with highest individual income was **`r high_income$state`** with an average income of $`r scales::comma(round(high_income$avg_income, 0))`.
+>>>>>>> 96675a405e81a1708a3284c1979377e178063c09
 
 #### 4. What is the last year in which the NYC CBSA had the most data scientists in the country?
 
@@ -411,7 +415,11 @@ ggplot(rent_income_2009, aes(x = household_income, y = monthly_rent)) +
 #### The relationship between total employment and total employment in the health care and social services sector (NAICS 62) across different CBSAs.
 A strong positive relationship is observed between total employment and the employment in the health care and social service sector across CBSAs. This can indicate that the larger the labor market , the greater amount of workers there are in this sector. 
 
+<<<<<<< HEAD
 ```{r}
+=======
+Test
+>>>>>>> 96675a405e81a1708a3284c1979377e178063c09
 
 # Filter healthcare sector and summarize by year
 healthcare <- WAGES |>
