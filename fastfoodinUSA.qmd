@@ -1,0 +1,69 @@
+---
+title: "Fast Food in America"
+---
+```{r}
+library(dplyr)
+library(readr)
+library(DT)
+
+eatdrink_tract <- read_csv("nanda_eatdrink_Tract20_1990-2021_01P.csv")
+
+fastfood_tract <- eatdrink_tract |>
+  filter(year == 2021) |>
+  arrange(desc(count_fastfood)) |>
+  select(tract_fips20,totpop,aland20,count_fastfood,emps_fastfood,den_fastfood,aden_fastfood) 
+
+datatable(fastfood_tract |> slice_max(count_fastfood, n = 100),
+          caption = "Top 100 Census Tract by Fast Food Count (2021)",
+          options = list(pageLength = 20, scrollX = TRUE))
+
+```
+
+```{r}
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(tigris)
+library(sf)
+
+# Cache shapefiles locally (faster repeat runs)
+options(tigris_use_cache = TRUE)
+
+# 1️⃣ Load dataset
+eatdrink_tract <- read_csv("nanda_eatdrink_Tract20_1990-2021_01P.csv")
+
+# 2️⃣ Filter for 2021 and compute fast food per 1,000 people
+fastfood_tract <- eatdrink_tract |>
+  filter(year == 2021, totpop > 0) |>           # exclude zero-pop tracts
+  mutate(FastFood_per_1000 = (count_fastfood / totpop) * 1000) |>
+  select(tract_fips20, FastFood_per_1000)
+
+# 3️⃣ Load 2020 Census tract shapefiles (nationwide or by state)
+tracts20 <- tracts(year = 2020, cb = TRUE) |> 
+  mutate(GEOID = as.character(GEOID))
+
+# 4️⃣ Join data
+fastfood_map <- tracts20 |>
+  left_join(fastfood_tract, by = c("GEOID" = "tract_fips20"))
+
+# 5️⃣ Plot heat map with plasma palette
+ggplot(fastfood_map) +
+  geom_sf(aes(fill = FastFood_per_1000), color = NA) +
+  scale_fill_viridis_c(
+    option = "plasma",      # 👈 bright purple-yellow palette
+    trans = "sqrt",         # better contrast for skewed data
+    na.value = "grey90",
+    name = "Fast-Food per 1,000 People"
+  ) +
+  labs(
+    title = "Fast-Food Restaurants per 1,000 People by Census Tract (2021)",
+    subtitle = "Source: NaNDA Eating & Drinking Places Dataset (2021)",
+    caption = "Tracts with missing or zero population shown in grey"
+  ) +
+  theme_void() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 16, face = "bold"),
+    plot.subtitle = element_text(size = 12)
+  )
+```
