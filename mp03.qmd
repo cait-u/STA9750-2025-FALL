@@ -302,7 +302,7 @@ datatable(
   formatRound("Fraction of Dead Trees", 2)
 
 ```
-The district with the highest density of trees is District 30 in Queens at 4,315 dead trees, making it 14.83% of trees being dead.
+The district with the highest fraction of dead trees is District 32 in Queens at 4,315 dead trees, making it 14.83% of trees being dead.
 
 #### 4. What is the most common tree species in Manhattan?
 ```{r}
@@ -390,9 +390,202 @@ The closest tree species to Baruch College is the Liquidambar styraciflua - swee
 
 ## Government Project Design
 
-ffdd
-## Extra Credit
+### Proposed Project Description
 
-### Improved Tree Map Visualizations
+District 11 is based in the far northwest corner of the Bronx, covering all of Riverdale, Norwood, Van Cortlandt Village, and Woodlawn, and parts of Wakefield, Bedford Park, and Kingsbridge. As the district with the highest fraction of dead and stump trees amongst total trees at 19.2%, I propose this project to dig up dead trees, replace stumps, and plant more street trees in sidewalk that lack trees.
 
-### Additional Parks Data
+### Scope of District 11
+
+```{r}
+district_11 <- joined_trees |>
+  st_drop_geometry() |>
+  mutate(
+    dead_trees = tpcondition == "Dead",
+    stump_trees = tpstructure == "Stump"
+  ) |>
+  filter(CounDist == 11) |>   
+  group_by(CounDist) |>
+  summarise(
+    total_trees = n(),
+    dead_trees = sum(dead_trees, na.rm = TRUE),
+    stump_trees = sum(stump_trees, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    `Council District` = CounDist,
+    `Total Trees` = total_trees,
+    `Dead Trees` = dead_trees,
+    `Stump Trees` = stump_trees
+  ) |>
+  select(`Council District`, `Total Trees`, `Dead Trees`, `Stump Trees`)
+
+  
+datatable(
+  district_11,
+  rownames = FALSE,
+  caption = "District 11 Trees Summary",
+  options = list(dom = 't')
+) |>
+  formatRound(c("Total Trees", "Dead Trees", "Stump Trees"), 0, mark = ",")
+```
+
+### Heatmap of District 11 
+```{r}
+library(dplyr)
+library(sf)
+library(ggplot2)
+
+# Filter District 11 polygon
+district11 <- boundaries_simple |>
+  filter(CounDist == 11)
+
+# Filter trees inside District 11
+trees_11 <- joined_trees |>
+  st_intersection(district11)
+
+# Classify tree condition 
+trees_11_status <- trees_11 |>
+  mutate(
+    condition_group = case_when(
+      tpstructure == "Stump" ~ "Stump",
+      tpcondition == "Dead"  ~ "Dead",
+      TRUE                   ~ "Normal"
+    )
+  )
+
+# Plot the 3 types of trees condition
+ggplot() +
+  geom_sf(data = district11, fill = "white", color = "black", linewidth = 0.65) +
+  
+  geom_sf(
+    data = trees_11_status,
+    aes(color = condition_group),
+    size = .5,
+    alpha = 0.7
+  ) +
+  
+  scale_color_manual(
+    values = c(
+      "Stump"  = "red",
+      "Dead"   = "black",
+      "Normal" = "green3"
+    ),
+    name = "Tree Condition"
+  ) +
+  
+  labs(
+    title = "Tree Conditions in NYC Council District 11"
+  ) +
+  
+  theme_minimal() +
+  theme(panel.grid = element_blank())
+
+```
+### Top 5 Districts with Highest Percentange of Dead and Stump Trees
+
+District 11 has the highest percentage of Dead and Stump Trees combined at 19.2% or a total of 5,350 trees to be dug up and replaced. This highlights District 11 as a top priority for a restoration.
+```{r}
+library(dplyr)
+library(ggplot2)
+library(sf)
+library(scales
+        )
+fraction_deadstump <- joined_trees |>
+  st_drop_geometry() |>
+  mutate(
+    dead_trees  = tpcondition == "Dead",
+    stump_trees = tpstructure == "Stump"
+  ) |>
+  group_by(CounDist) |>
+  summarise(
+    total_trees = n(),
+    dead_trees  = sum(dead_trees, na.rm = TRUE),
+    stump_trees = sum(stump_trees, na.rm = TRUE),
+    fraction_deadstump = (dead_trees + stump_trees) / total_trees
+  ) |>
+  ungroup()
+
+# Slice top 5
+top5_deadstump <- fraction_deadstump |>
+  arrange(desc(fraction_deadstump)) |>
+  slice_head(n = 5)
+
+# Plot Top 5
+ggplot(top5_deadstump,
+       aes(x = reorder(as.factor(CounDist), fraction_deadstump),
+           y = fraction_deadstump)) +
+  
+  geom_col(fill = "firebrick", alpha = 0.85) +
+  
+  geom_text(
+    aes(label = percent(fraction_deadstump, accuracy = 0.1)),
+    hjust = -0.1,
+    size = 4.5
+  ) +
+  
+  coord_flip() +
+  
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    expand = expansion(mult = c(0, 0.15))
+  ) +
+  
+  labs(
+    title = "Top 5 NYC Districts by Fraction of Dead + Stump Trees",
+    x = "Council District",
+    y = "Percent Dead + Stump Trees"
+  ) +
+  
+  theme_minimal(base_size = 14)
+
+```
+
+### Comparing Dead and Stump Fraction of Trees for All Districts via Choropleth
+
+Looking at District 11 in this heat map, it is apparent that this district is an outlier when it comes to the quality of trees in its surrounding districts. 
+```{r}
+library(ggplot2)
+library(dplyr)
+library(sf)
+library(scales)
+
+dead_stump_map <- boundaries_simple |>
+  left_join(fraction_deadstump, by = "CounDist")
+
+ggplot(dead_stump_map) +
+  geom_sf(
+    aes(fill = fraction_deadstump),
+    color = "white",
+    size = 0.2
+  ) +
+  geom_sf(
+    data = dead_stump_map |> filter(CounDist == 11),
+    fill = NA,
+    color = "yellow",
+    size = 1.2
+  ) +
+  scale_fill_viridis_c(
+    option = "magma",
+    direction = -1,
+    labels = percent_format(accuracy = 0.1),
+    name = "Fraction Dead + Stump"
+  ) +
+  labs(
+    title = "Fraction of Dead + Stump Trees by NYC Council District",
+    subtitle = "District 11 Highlighted in Yellow"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    plot.title = element_text(face = "bold")
+  )
+
+```
+
+### Benefit of Tree Restoration for District 11
+
+District 11 has the highest proportion of dead and stump trees in New York City, with 19.2% of its street trees in non-viable condition. This rate is more than double the citywide average and significantly higher than neighboring districts.
+
+Dead trees and residual stumps reduce shade coverage, contribute to urban heat retention, and create physical hazards for everyone on the road. They also diminish neighborhood aesthetics and lower the environmental and public-health benefits that living trees provide, including improved air quality and stormwater absorption.
+
+I would like to propose a replacement of 5,350 trees, particularly those that provide great shade, aesthetically pleasing, and doesn't require upkeep. With this initiative, we can create safer and more beautiful streets, ensuring that all residents can benefit from a more vibrant urban landscape.
