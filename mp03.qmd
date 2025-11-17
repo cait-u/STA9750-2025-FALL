@@ -1,0 +1,398 @@
+---
+title: "Mini-Project 03"
+subtitle: "Visualizing and Maintaining the Green Canopy of NYC"
+author: "Caitlin Uang"
+date: "`r Sys.Date()`"
+format:
+  html:
+    code-fold: true
+    code-summary: "Show code"
+    embed-resources: true
+    toc: true
+editor: visual
+execute:
+  warning: false
+  message: false
+  echo: true
+---
+
+## Summary
+
+Despite being a densely metropolitan area, New York City is known for its green spaces for its 8.5 million residents to relax and enjoy nature without having to leave the city. 
+
+This project analyzes two datasets from NYC Council District Boundaries and NYC Record of Forestry Tree Points to create compelling visualizations to propose a new program for the NYC Parks and Recreation Department to dedicate funding towards a tree project in my chosen district.
+
+## Data Acquisition
+
+### NYC City Council Districts
+
+```{r}
+library(sf)
+library(tidyverse)
+library(httr2)
+
+download_district_boundaries <- function() {
+  
+  # Define file paths
+  zip_url <- "https://s-media.nyc.gov/agencies/dcp/assets/files/zip/data-tools/bytes/city-council/nycc_25c.zip"
+  zip_file <- file.path("data", "mp03", "nycc_25c.zip")
+  unzip_dir <- file.path("data", "mp03", "nycc_25c")
+
+  # Create mp03 directory if it doesn't exist
+  if(!dir.exists(file.path("data", "mp03"))){
+    dir.create(file.path("data", "mp03"), showWarnings=FALSE, recursive=TRUE)
+    }
+
+  # Download ZIP file only if needed
+  if(!file.exists(zip_file)) {
+    download.file(zip_url, destfile = zip_file)
+    message("Dowloaded file:", zip_file)
+  } else {
+      message("ZIP file exists. Skipping download.")
+  }
+  
+  # Unzip file only if needed
+  if (length(list.files(unzip_dir, pattern = "\\.shp$", recursive = TRUE)) == 0) {
+    unzip(zip_file, exdir = unzip_dir)
+    message("Unzipped files to: ", unzip_dir)
+  } else {
+    message("ZIP files already unzipped.")
+  }
+
+  # Read shapefile
+  shp_files <- list.files(unzip_dir, pattern = "\\.shp$", full.names = TRUE, recursive = TRUE)
+  if (length(shp_files) == 0) stop("No shapefile found after unzipping.")
+  
+  nycc_25c <- sf::st_read(shp_files[1], quiet = TRUE)
+  
+  # Transform to WGS84
+  nycc_wgs84 <- st_transform(nycc_25c, crs = "WGS84")
+  
+  message("Successfully read and transformed shapefile to WGS84.")
+  
+  # Return sf to user
+  return(nycc_wgs84)
+}
+
+boundaries <- download_district_boundaries()
+
+# Optional simplifying
+boundaries_simple <- boundaries |>
+  st_transform(6539) |>     
+  mutate(geometry = st_simplify(geometry, dTolerance = 5)) |> 
+  st_transform("WGS84") 
+
+plot(st_geometry(boundaries_simple), main = "NYC City Council Districts (WGS84, simplified)")
+```
+
+### NYC Tree Points
+
+```{r}
+library(httr2)
+library(sf)
+library(dplyr)
+
+download_tree_points <- function(
+  base_url = "https://data.cityofnewyork.us/resource/hn5i-inap.geojson",
+  out_dir = "data/mp03",
+  limit = 50000
+) {
+
+  # Create mp03 directory if it doesn't exist
+  if (!dir.exists(out_dir)) {
+    dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+  }
+  
+  offset <- 0
+  page <- 1
+  downloaded_files <- c()
+  
+  repeat {
+    # Construct filename
+    file_path <- paste0(out_dir, "/treepoints_", page, ".geojson")
+    
+    # Skip if file already exists
+    if (file.exists(file_path)) {
+      message(paste("✔ File exists:", file_path, "— skipping"))
+    } else {
+      message(paste("⬇ Downloading page", page, "(offset =", offset, ")"))
+      
+      req <- request(base_url) |>
+        req_url_query(`$limit` = limit, `$offset` = offset)
+      
+      resp <- req_perform(req)
+      writeBin(resp_body_raw(resp), file_path)
+    }
+    
+    downloaded_files <- c(downloaded_files, file_path)
+    
+    # Check number of rows returned
+    temp_data <- suppressWarnings(st_read(file_path, quiet = TRUE))
+    n_returned <- nrow(temp_data)
+    
+    message(paste("   → Rows returned:", n_returned))
+    
+    if (n_returned < limit) {
+      message("✔ Final page reached — stopping.")
+      break
+    }
+    
+    offset <- offset + limit
+    page <- page + 1
+  }
+  
+  message("Combining files...")
+  
+  all_data <- lapply(downloaded_files, \(f) st_read(f, quiet = TRUE)) |>
+    bind_rows()
+  
+  message(paste("Download complete. Total rows:", nrow(all_data)))
+  
+  return(all_data)
+}
+
+# Run the function
+tree_points <- download_tree_points()
+
+```
+
+## Data Integration and Initial Explortion
+
+### Mapping NYC Trees
+
+```{r}
+library(ggplot2)
+
+ggplot() +
+  # Plot Council district boundaries (polygons)
+  geom_sf(
+    data = boundaries_simple,
+    fill = "white",
+    color = "black",
+    linewidth = 0.2
+  ) +
+  
+  # Plot Tree point locations
+  geom_sf(
+    data = tree_points,
+    color = "darkgreen",
+    alpha = 0.1,
+    size = 0.1
+  ) +
+  
+  labs(
+    title = "NYC Street Trees Overlaid on City Council Districts"
+  ) +
+  
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+
+
+```
+
+### District-Level Analyses of Trees
+
+```{r}
+# Joining tree point onto district boundaries (simplified)
+joined_trees <- st_join(
+  tree_points,
+  boundaries_simple,
+  join = st_intersects
+)
+```
+
+#### 1. Which council district has the most tree?
+
+```{r}
+library(DT)
+
+most_trees <- joined_trees |>
+  st_drop_geometry() |>
+  count(CounDist, name = "Tree Count") |>
+  rename(`Council District` = CounDist) |>
+  slice_max(`Tree Count`, n = 1) |>
+  select(`Council District`, `Tree Count`)
+
+datatable(
+  most_trees,
+  rownames = FALSE,
+  caption = "Council District with the Most Trees",
+  options = list(
+  dom = 't') 
+)|>
+formatRound(
+    columns = "Tree Count",
+    digits = 0,
+    mark = ","
+  )
+```
+
+The district with the most trees is District 51 in Staten Island at 70,965 trees.
+
+#### 2. Which council district has the highest density of trees?
+
+```{r}
+
+# Calculate tree density and show only the densest district
+densest_trees <- joined_trees |>
+  st_drop_geometry() |>
+  count(CounDist, Shape_Area, name = "Tree_Count") |>
+  mutate(
+    area_km2 = Shape_Area / 1e6,          
+    density  = Tree_Count / area_km2
+  ) |>
+  slice_max(density, n = 1) |>
+  # Clean column names
+  mutate(
+    `Council District` = CounDist,
+    `Tree Count` = Tree_Count,
+    `Area (km2)` = round(area_km2, 2),
+    `Tree Density` = round(density, 2)
+  ) |>
+  # Select ONLY the formatted columns
+  select(`Council District`, `Tree Count`, `Area (km2)`, `Tree Density`)
+
+# Show densest district via datatable
+datatable(
+  densest_trees,
+  rownames = FALSE,
+  caption = "Council District with the Highest Density of Trees",
+  options = list(dom = 't')
+) |>
+  formatRound(
+    columns = "Tree Count",
+    digits = 0,
+    mark = ","
+  )
+```
+
+The district with the highest density of trees is District 7 in Manhattan at 283.6 trees per km2.
+
+#### 3. Which district has the highest fraction of dead trees out of all trees?
+```{r}
+dead_fraction <- joined_trees |>
+  st_drop_geometry() |>
+  mutate(dead_trees = tpcondition == "Dead") |>
+  group_by(CounDist) |>
+  summarise(
+    total_trees = n(),
+    dead_trees = sum(dead_trees, na.rm = TRUE),
+    fraction_dead = dead_trees / total_trees
+  ) |>
+  slice_max(fraction_dead, n = 1) |>
+  mutate(
+    `Council District` = CounDist,
+    `Total Trees` = total_trees,
+    `Dead Trees` = dead_trees,
+    `Fraction of Dead Trees` = fraction_dead
+  ) |>
+  select(`Council District`, `Total Trees`, `Dead Trees`, `Fraction of Dead Trees`)
+  
+datatable(
+  dead_fraction,
+  rownames = FALSE,
+  caption = "Council District with the Highest Fraction of Dead Trees",
+  options = list(dom = 't')
+) |>
+  formatRound(c("Total Trees", "Dead Trees"), 0, mark = ",") |>
+  formatRound("Fraction of Dead Trees", 2)
+
+```
+The district with the highest density of trees is District 30 in Queens at 4,315 dead trees, making it 14.83% of trees being dead.
+
+#### 4. What is the most common tree species in Manhattan?
+```{r}
+
+# Create a new column for Borough using case_when()
+joined_trees_borough <- joined_trees |>
+  mutate(
+    Borough = case_when(
+      CounDist >= 1  & CounDist <= 10 ~ "Manhattan",
+      CounDist >= 11 & CounDist <= 18 ~ "Bronx",
+      CounDist >= 19 & CounDist <= 32 ~ "Queens",
+      CounDist >= 33 & CounDist <= 48 ~ "Brooklyn",
+      CounDist >= 49 & CounDist <= 51 ~ "Staten Island"
+    )
+  )
+
+# Filter to show only Manhattan and find most common species
+manhattan_trees <- joined_trees_borough |>
+  st_drop_geometry() |>
+  filter(Borough == "Manhattan") |>
+  count(genusspecies, name = "Count") |>
+  slice_max(Count, n = 1) |>
+  mutate(
+    `Tree Species` = genusspecies,
+    `Total Count of Tree Species` = Count
+  ) |>
+  select(`Tree Species`,`Total Count of Tree Species`)
+
+datatable(
+  manhattan_trees,
+  rownames = FALSE,
+  caption = "Most Common Tree Species in Manhattan",
+  options = list(dom = 't')
+) |>
+  formatRound("Total Count of Tree Species", 0, mark = ",")
+```
+The most common tree species in Manhattan is the Gleditsia triacanthos var. inermis - Thornless honeylocust with a total count of 17,310 trees in the borough.
+
+#### 5. What is the species of the tree closest to Baruch’s campus?
+The coordinates of Baruch College is latitude = 40.740278 N and longitude = -73.983333 W.
+```{r}
+
+# Function to create an sf point from lat/lon (WGS84)
+new_st_point <- function(lat, lon, ...){
+  st_sfc(st_point(c(lon, lat))) |>
+    st_set_crs("WGS84")    
+}
+
+# 2. Baruch College coordinates
+baruch_point <- new_st_point(40.740278, -73.983333)
+
+# 3. Transform BOTH Baruch + Tree dataset to feet
+baruch_point_feet <- baruch_point |>
+  st_transform(2263)
+
+joined_trees_feet <- joined_trees |>
+  st_transform(2263)
+
+# Compute distance from each tree to Baruch 
+distance_trees <- joined_trees_feet |>
+  mutate(distance_ft = as.numeric(st_distance(geometry, baruch_point_feet)))
+
+# Find the closest tree
+closest_tree <- distance_trees |>
+  st_drop_geometry() |>
+  select(genusspecies, distance_ft) |>
+  slice_min(distance_ft, n = 1) |>
+  mutate(
+    `Tree Species` = genusspecies,
+    `Distance From Baruch (ft)` = distance_ft
+  ) |>
+  select(`Tree Species`, `Distance From Baruch (ft)`)
+  
+# Datatable
+datatable(
+  closest_tree,
+  rownames = FALSE,
+  caption = "Closest Tree Species to Baruch College",
+  options = list(dom = 't')
+) |>
+  formatRound("Distance From Baruch (ft)", 2)
+
+```
+The closest tree species to Baruch College is the Liquidambar styraciflua - sweetgum with a distance of 75.54 feet away from campus.
+
+## Government Project Design
+
+ffdd
+## Extra Credit
+
+### Improved Tree Map Visualizations
+
+### Additional Parks Data
