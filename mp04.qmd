@@ -22,7 +22,6 @@ The U.S. Bureau of Labor Statistics (BLS) releases many of the nation’s most i
 
 The dismissal of Commissioner Erika McEntarfer in August 2025 sparked immediate concern among economists across the political spectrum, who warned that even the appearance of political influence could undermine trust in BLS data. Supporters of the President justified the action by pointing to the size and direction of recent CES revisions, arguing that the initial estimates had become unreliable. Defenders of BLS countered that revisions are a normal feature of high-frequency statistical reporting and that Commissioners have almost no ability to preview or alter CES estimates before release. This project analyzes CES employment estimates and their revisions over time to evaluate how large revisions typically are, whether they display consistent patterns, and how revision behavior has evolved across decades.
 
-
 ## Data Aqcuisition
 
 ### Final CES Estimates
@@ -175,7 +174,7 @@ ces_revisions |>
 
 ## Data Integration and Exploration
 
-To investigate trends in CES levels and revisions, join together both tables and perform exploratory data analysis.
+To investigate trends in CES levels and revisions, both tables were joined together to perform exploratory data analysis.
 
 ```{r}
 # Join both tables using left join
@@ -310,9 +309,8 @@ ggplot(ces_joined, aes(x = date, y = revision)) +
   )
 
 ```
+
 #### Absolute Revision as a Percentage of Overall Employment Level
-
-
 
 ```{r}
 # Calculate absolute CES revision as a percentage of overall employment level
@@ -336,7 +334,6 @@ overall_avg_rev_pct <- ces_joined |>
 percent(overall_avg_rev_pct$mean_rev_pct, accuracy = 0.001)
 
 ```
-
 
 ```{r}
 ggplot(rev_pct_year, aes(x = year, y = avg_rev_pct)) +
@@ -567,6 +564,7 @@ datatable(
   formatPercentage("fraction_positive") |>
   formatRound("abs_rev",1)
 ```
+
 ```{r}
 ggplot(positive_month, aes(month, fraction_positive)) +
   geom_col(fill = "darkgreen") +
@@ -598,6 +596,7 @@ ggplot(ces_joined, aes(x = revision)) +
     axis.title = element_text(size = 12)
   )
 ```
+
 The distribution of CES revisions shows a tight clustering around zero with almost a symmetric positive and negative values, showing that most revisions are small routine adjustments rather than systematic downward corrections. This visual impression is reinforced by the decade-level statistics: the fraction of positive revisions ranges from **42%** in the 1970s to **69%** in the 1990s and **63%** in the 2010s. There was no decade showing a pattern of negative revision. The average absolute revision remains within a fairly narrow range of **35–95 thousand**, reflecting consistent numbers over time. With the share of positive revisions typically falling between **50% and 65%**, the monthly numbers also demonstrating that upward and downward revisions occur with comparable frequency throughout the years. The t-test on the mean revision also supports this conclusion as the average revision is **11.48 thousand jobs**, a statistically significant but economically small upward adjustment that contradicts the claim of persistent overestimation leading to large downward revisions. Altogether, these pieces of evidence show that CES revisions exhibit normal statistical variation and do not support the claim that BLS regularly publishes overly optimistic or unreliable initial jobs numbers.
 
 **Verdict:** False
@@ -605,22 +604,12 @@ The distribution of CES revisions shows a tight clustering around zero with almo
 ### Claim 2 (Fake): Commentator Alleges BLS Is ‘Losing Control’ of Jobs Data Amid Growing Revision Errors
 
 ```{r}
-prop_test <- broom::tidy(prop_test) |>
-  dplyr::select(estimate1, estimate2, statistic, p.value, conf.low, conf.high) |>
-  rename(
-    `Pre-2000 (%)` = estimate1,
-    `Post-2000 (%)` = estimate2,
-    `X-squared` = statistic,
-    `p-value` = p.value,
-    `CI Lower (%)` = conf.low,
-    `CI Upper (%)` = conf.high
-  ) |>
-  mutate(across(c(`Pre-2000 (%)`, `Post-2000 (%)`, `CI Lower (%)`, `CI Upper (%)`),
-                ~ percent(., accuracy = 0.1)))
+
 
 knitr::kable(prop_test,
              caption = "Prop-Test: Negative CES Revisions Pre- vs Post-2000")
 ```
+
 ```{r}
 ggplot(ces_joined, aes(x = date, y = revision)) +
   geom_line() +
@@ -660,6 +649,7 @@ ggplot(ces_joined, aes(x = date, y = revision)) +
     axis.text = element_text(size = 8)
   )
 ```
+
 ```{r}
 ggplot(rev_pct_year, aes(x = year, y = avg_rev_pct)) +
   geom_line(color = "darkgreen", linewidth = 1) +
@@ -678,6 +668,7 @@ ggplot(rev_pct_year, aes(x = year, y = avg_rev_pct)) +
   )
 
 ```
+
 The claim that BLS job reports have become increasingly unreliable is not supported by the data. Proportion test results show that the share of negative revisions has not increased over time, falling slightly from **44.3%** before 2000 to **40.5%** afterwards. This contradicts that most revisions are now downward corrections. The Monthly CES Revisions plot further shows that revisions generally fluctuate around zero, with most falling within a modest range and no long-run trend toward larger errors. Although the **largest negative (–672,000 in March 2020)** and **positive (+437,000 in November 2021)** revisions appear dramatic, both occurred during COVID-19 and represent only **0.45%** and **0.29%** of total employment, respectively. Outside of this period, revisions are proportionally tiny: the Average Absolute Revision as % of Employment plot shows values typically **between 0.02% and 0.05%**, and the overall average revision across all years is just **0.048%** of total employment. These findings demonstrate that CES revisions are stable and expected, debunking the claim of deteriorating data quality.
 
 **Verdict:** False
