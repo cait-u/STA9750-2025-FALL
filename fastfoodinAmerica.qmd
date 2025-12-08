@@ -1,0 +1,337 @@
+---
+title: "How many fast-food restaurants are ineach state?"
+subtitle: "Are “food deserts” in the US linked to health problems like diabetes?"
+author: "Caitlin Uang"
+date: "`r Sys.Date()`"
+format:
+  html:
+    code-fold: true
+    code-summary: "Show code"
+    embed-resources: true
+    toc: true
+editor: visual
+execute:
+  warning: false
+  message: false
+  echo: true
+---
+```{r}
+library(dplyr)
+library(readr)
+library(DT)
+
+
+# Cache shapefiles locally (faster repeat runs)
+options(tigris_use_cache = TRUE)
+
+# load dataset
+eatdrink_tract <- read_csv("nanda_eatdrink_Tract20_1990-2021_01P.csv")
+
+fastfood_tract <- eatdrink_tract |>
+  filter(year == 2021) |>
+  arrange(desc(count_fastfood)) |>
+  select(tract_fips20,totpop,aland20,count_fastfood,emps_fastfood,den_fastfood,aden_fastfood) 
+
+datatable(fastfood_tract |> slice_max(count_fastfood, n = 100),
+          caption = "Top 100 Census Tract by Fast Food Count (2021)",
+          options = list(pageLength = 20, scrollX = TRUE))
+
+```
+
+```{r}
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(tigris)
+library(sf)
+library(DT)
+
+
+# Filter for 2021 and  population > 0
+fastfood_tract <- eatdrink_tract |>
+  filter(year == 2021, totpop > 0) |>
+  select(tract_fips20, count_fastfood)
+```
+
+### Count of Fast Food Restaurants by County
+```{r}
+# Aggregate to county level
+
+fastfood_county <- fastfood_tract |>
+  mutate(county_fips20 = substr(tract_fips20, 1, 5)) |>
+  group_by(county_fips20) |>
+  summarize(
+    count_fastfood = sum(count_fastfood, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Load 2020 county shapefiles (national)
+
+county_shapes <- counties(year = 2020, cb = TRUE) |>
+  mutate(GEOID = as.character(GEOID))
+
+# Join shapefile and data
+
+fastfood_map_county <- county_shapes |>
+  left_join(fastfood_county, by = c("GEOID" = "county_fips20"))
+
+# create datatable
+datatable(st_drop_geometry(fastfood_map_county)[, c("NAME", "STATEFP", "count_fastfood")],
+  caption = "Fast-Food by County — United States (2021)",
+  options = list(pageLength = 10, scrollX = TRUE)
+)
+
+brand_colors <- c(
+  "#b4e6a2", "#9badff", "#e792e7", "#932092", "#0432ff", "#fd9c58"
+)
+
+ggplot(fastfood_map_county) +
+  geom_sf(aes(fill = count_fastfood), color = NA) +
+  scale_fill_gradientn(
+    colours = brand_colors,
+    trans = "sqrt",
+    na.value = "grey90",
+    name = "Count of\nFast-Food"
+  ) +
+  coord_sf(xlim = c(-125, -66), ylim = c(24, 50), expand = FALSE) +
+  labs(
+    title = "Fast-Food Restaurants by County (2021)",
+    caption = "Source: National Neighborhood Data Archive (NaNDA): Eating and Drinking Places by Census Tract and ZCTA, \nUnited States, 1990-2021"
+  ) +
+  theme_void() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 18, face = "bold"),
+    plot.subtitle = element_text(size = 13),
+    plot.margin = margin(10, 10, 10, 10),
+    plot.caption = element_text(size = 10, face = "italic", hjust = 0)
+)
+```
+
+
+### Count of Fast Food Restaurants by State
+```{r}
+library(DT)
+library(sf)
+library(webshot2)
+library(htmlwidgets)
+library(sf)
+
+# BY STATE
+# Derive state FIPS
+fastfood_state <- fastfood_tract |>
+  mutate(state_fips20 = substr(tract_fips20, 1, 2)) |>
+  group_by(state_fips20) |>
+  summarize(
+    `Count of Fast Food` = sum(count_fastfood, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Load State shapefiles
+state_shapes <- states(year = 2020, cb = TRUE) |>
+  mutate(STATEFP = as.character(STATEFP))
+
+#Join state shape with dataset
+fastfood_map_state <- state_shapes |>
+  left_join(fastfood_state, by = c("STATEFP" = "state_fips20"))
+
+
+# Build datatable
+datatable(
+  st_drop_geometry(fastfood_map_state) |>
+    slice_max(`Count of Fast Food`, n = 10) |>
+    select(NAME, `Count of Fast Food`) |>
+    rename(State = NAME),
+  rownames = FALSE,
+  caption = "Top 10 States with the Most Fast Food Restaurants",
+  options = list(
+    searching = FALSE,
+    scrollX = FALSE,
+    autoWidth = TRUE
+  )
+) |>
+  formatRound(
+    columns = "Count of Fast Food",
+    digits = 0,
+    mark = ","
+  )
+
+
+brand_colors <- c(
+  "#b4e6a2", "#9badff", "#e792e7", "#932092", "#0432ff", "#fd9c58"
+)
+
+# plot heatmap
+ggplot(fastfood_map_state) +
+  geom_sf(aes(fill = `Count of Fast Food`), color = NA) +
+  scale_fill_gradientn(
+    colours = brand_colors,
+    trans = "sqrt",
+    na.value = "grey90",
+    name = "Count of\nFast-Food",
+    limits = c(0, 7500),
+    breaks = c(0, 1000, 2000, 4000, 7500)
+
+  ) +
+  coord_sf(xlim = c(-125, -66), ylim = c(24, 50), expand = FALSE) +
+  labs(
+    title = "Fast-Food Restaurants by State (2021)",
+    caption = "Source: National Neighborhood Data Archive (NaNDA): Eating and Drinking Places by Census Tract and ZCTA, \nUnited States, 1990-2021"
+  ) +
+  theme_void() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 18, face = "bold"),
+    plot.subtitle = element_text(size = 13),
+    plot.margin = margin(10, 10, 10, 10),
+    plot.caption = element_text(size = 10, face = "italic", hjust = 0)
+)
+```
+
+### Fast Food Restaurants per 1000 people by COUNTY (USING den_fastfood)
+
+
+# # Aggregate to county level
+den_fastfood_county <- fastfood_tract |>
+  mutate(county_fips20 = substr(tract_fips20, 1, 5)) |>
+  group_by(county_fips20) |>
+  summarize(
+    den_fastfood = weighted.mean(den_fastfood, w = totpop, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Load 2020 county shapefiles
+county_shapes <- counties(year = 2020, cb = TRUE) |>
+  mutate(GEOID = as.character(GEOID))
+
+# Join shapefile and data (correct object)
+fastfood_map_county <- county_shapes |>
+  left_join(den_fastfood_county, by = c("GEOID" = "county_fips20"))
+
+# Datatable
+datatable(
+  st_drop_geometry(fastfood_map_county) |>
+    slice_max(den_fastfood, n = 10) |>
+    select(NAME, STATEFP, den_fastfood),
+  caption = "Top 10 Fast Food Restaurants per 1,000 People (County, 2021)"
+) |>
+  formatRound(
+    columns = c("den_fastfood"),
+    digits = 2
+  )
+
+
+
+
+### Fast Food Restaurants per 1000 people by COUNTY (USING total fastfood/total pop): True county level density
+
+library(tidycensus)
+library(tigris)
+# Build state lookup table (always works)
+state_lookup <- states(year = 2020) |>
+  st_drop_geometry() |>
+  select(STATEFP, STUSPS, NAME) |>
+  rename(
+    State_Abbr = STUSPS,
+    State_Name = NAME
+  )
+
+# Aggregate to county level
+den_fastfood_county <- fastfood_tract |>
+  mutate(county_fips20 = substr(tract_fips20, 1, 5)) |>
+  group_by(county_fips20) |>
+  summarize(
+    total_fastfood = sum(count_fastfood, na.rm = TRUE),
+    total_pop = sum(totpop, na.rm = TRUE),
+    den_fastfood = (total_fastfood / total_pop) * 1000,
+    .groups = "drop"
+  ) |>
+  filter(total_pop > 0)
+
+# Load county shapefile
+county_shapes <- counties(year = 2020, cb = TRUE) |>
+  mutate(GEOID = as.character(GEOID))
+
+# Join county → data → state lookup
+fastfood_map_county <- county_shapes |>
+  left_join(den_fastfood_county, by = c("GEOID" = "county_fips20")) |>
+  left_join(state_lookup, by = "STATEFP")
+
+datatable(
+  st_drop_geometry(fastfood_map_county) |>
+    arrange(desc(den_fastfood)) |>
+    select(
+      County = NAME.x,
+      State = State_Abbr,
+      State_Name,
+      total_fastfood,
+      total_pop,
+      den_fastfood
+    ),
+  caption = "Fast Food Restaurants per 1,000 People (County, 2021)",
+  options = list(pageLength = 10, scrollX = TRUE)
+) |>
+  formatRound("total_fastfood", 0, mark = ",") |>
+  formatRound("den_fastfood", 2)
+
+### Fast Food Restaurants per 1000 people by STATE
+
+# BY STATE
+# Derive state FIPS
+fastfood_state <- fastfood_tract |>
+  mutate(state_fips20 = substr(tract_fips20, 1, 2)) |>
+  group_by(state_fips20) |>
+  summarize(
+    total_fastfood = sum(count_fastfood, na.rm = TRUE),
+    total_pop = sum(totpop, na.rm = TRUE),
+    den_fastfood = (total_fastfood / total_pop) * 1000,
+    .groups = "drop"
+  ) |>
+  filter(total_pop > 0)
+
+# Load State shapefiles
+state_shapes <- states(year = 2020, cb = TRUE) |>
+  mutate(STATEFP = as.character(STATEFP))
+
+#Join state shape with dataset
+fastfood_map_state <- state_shapes |>
+  left_join(fastfood_state, by = c("STATEFP" = "state_fips20"))
+
+# Build datatable (TOP 10)
+datatable(
+  st_drop_geometry(fastfood_map_state) |>
+    arrange(desc(den_fastfood)) |>
+    slice_max(den_fastfood, n = 10) |>
+    select(State = NAME, den_fastfood),
+  rownames = FALSE,
+  caption = "Fast Food Restaurants per 1,000 People (State, 2021)",
+  options = list(
+    searching = FALSE,
+    scrollX = FALSE,
+    autoWidth = TRUE
+  )
+) |>
+  formatRound(
+    columns = "den_fastfood",
+    digits = 2       # density → 2 decimals
+  )
+ggplot(fastfood_map_state) +
+  geom_sf(aes(fill = den_fastfood), color = NA) +
+  scale_fill_gradientn(
+    colours = brand_colors,
+    trans = "sqrt",
+    na.value = "grey90",
+    name = "Fast Food\nper 1,000"
+  ) +
+  coord_sf(xlim = c(-125, -66), ylim = c(24, 50), expand = FALSE) +
+  labs(
+    title = "Fast Food Restaurants per 1,000 People (State, 2021)",
+    caption = "Source: NaNDA Eating and Drinking Places by Census Tract and ZCTA, 1990–2021"
+  ) +
+  theme_void() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 18, face = "bold"),
+    plot.margin = margin(10, 10, 10, 10),
+    plot.caption = element_text(size = 10, face = "italic", hjust = 0)
+  )
