@@ -18,6 +18,8 @@ website:
         href: mp02.qmd
       - text: "Mini Project 3"
         href: mp03.qmd
+      - text: "Mini Project 4"
+        href: mp04.qmd
 
 format:
   html:
