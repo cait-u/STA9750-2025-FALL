@@ -1,0 +1,683 @@
+---
+title: "Mini-Project 04"
+subtitle: "Just the Fact(-Check)s, Ma’am!"
+author: "Caitlin Uang"
+date: "`r Sys.Date()`"
+format:
+  html:
+    code-fold: true
+    code-summary: "Show code"
+    embed-resources: true
+    toc: true
+editor: visual
+execute:
+  warning: false
+  message: false
+  echo: true
+---
+
+## Summary
+
+The U.S. Bureau of Labor Statistics (BLS) releases many of the nation’s most important economic indicators, including monthly employment figures from the Current Employment Statistics (CES) program. The CES “jobs number” is widely followed by policymakers, investors, and journalists and is routinely revised as more complete data become available.
+
+The dismissal of Commissioner Erika McEntarfer in August 2025 sparked immediate concern among economists across the political spectrum, who warned that even the appearance of political influence could undermine trust in BLS data. Supporters of the President justified the action by pointing to the size and direction of recent CES revisions, arguing that the initial estimates had become unreliable. Defenders of BLS countered that revisions are a normal feature of high-frequency statistical reporting and that Commissioners have almost no ability to preview or alter CES estimates before release. This project analyzes CES employment estimates and their revisions over time to evaluate how large revisions typically are, whether they display consistent patterns, and how revision behavior has evolved across decades.
+
+
+## Data Aqcuisition
+
+### Final CES Estimates
+
+Access and download the CES Total Nonfarm Payroll Seasonally Adjusted for each month from January 1979 to June of 2025 using httr2 and rvest.
+
+```{r}
+library(tidyverse)
+library(httr2)
+library(rvest)
+library(lubridate)
+library(htmltools)
+library(purrr)
+library(DT)
+library(scales)
+
+
+# Create HTTP POST request to BLS
+ces_req <- request("https://data.bls.gov/pdq/SurveyOutputServlet") |>
+  req_method("POST") |>
+  req_body_form(
+    request_action = "get_data",
+    reformat = "true",
+    from_results_page = "true",
+    from_year = "1979",
+    to_year = "2025",
+    initial_request = "false",
+    data_tool = "surveymost",
+    series_id = "CES0000000001",
+    original_annualAveragesRequested = "false"
+  )
+
+# Perform request & parse HTML
+ces_html <- ces_req |>
+  req_perform() |>
+  resp_body_html() |>
+  html_elements("table")
+
+ces_table <- ces_html |>
+  map(~ html_table(.x, fill = TRUE)) |>
+  keep(~ ncol(.x) > 5) |>
+  first()
+
+# Clean and pivot data to long format
+ces_levels <- ces_table |>
+  mutate(Year = as.integer(Year)) |>
+  pivot_longer(
+    cols = -Year,
+    names_to = "month",
+    values_to = "level"
+  ) |>
+  mutate(
+    month = str_sub(month, 1, 3),
+    date = ym(paste(Year, month)),
+    level = as.numeric(str_replace_all(level, ",", ""))
+  ) |>
+  drop_na(level, date) |>
+  arrange(date) |>
+  select(date,level)
+
+# Display datatable
+ces_levels |>
+  datatable(
+    rownames = FALSE,
+    caption = tags$caption(
+    style = 'caption-side: top; text-align: center; font-size: 20px; font-weight: bold;',"CES Total Nonfarm Payroll (Seasonally Adjusted) from January 1979 - July 2025"),
+    options = 
+      list(
+        searching=FALSE, 
+        info=FALSE,
+        lengthChange = FALSE
+        )
+    )
+
+```
+
+### CES Revisions
+
+```{r}
+# Scrape the CES revisions page
+rev_html <- request("https://www.bls.gov/web/empsit/cesnaicsrev.htm") |>
+  req_headers(
+    "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Accept" = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language" = "en-US,en;q=0.5",
+    "Referer" = "https://www.bls.gov/"
+  ) |>
+  req_perform() |>
+  resp_body_html()
+
+# Function to extract revision data for a single year
+extract_year <- function(year, html) {
+  
+  # Try to find table by year ID
+  tbl_node <- html |> html_element(paste0("#", year))
+  
+  # Return empty if table doesn't exist
+  if (inherits(tbl_node, "xml_missing")) {
+    return(tibble(
+      date = as.Date(character()),
+      original = numeric(),
+      final = numeric(),
+      revision = numeric()
+    ))
+  }
+  
+  # Extract and process the table
+  tbl <- tbl_node |>
+    html_element("tbody") |>
+    html_table(fill = TRUE, header = FALSE) |>
+    slice(1:12) |>
+    select(month = 1, original = 3, final = 5) |>
+    mutate(
+      original = as.numeric(str_remove_all(original, "[^0-9-]")),
+      final = as.numeric(str_remove_all(final, "[^0-9-]")),
+      date = ym(paste(year, month)),
+      revision = final - original
+    ) |>
+    select(date, original, final, revision) |>
+    filter(!is.na(final))
+  
+  return(tbl)
+}
+
+# Find years with tables available
+available_years <- rev_html |>
+  html_elements("table") |>
+  html_attr("id") |>
+  as.numeric() |>
+  na.omit() |>
+  sort()
+
+# Extract data for all available years
+ces_revisions <- map_dfr(available_years, extract_year, html = rev_html)
+
+# Display datatable
+ces_revisions |>
+  datatable(
+    rownames = FALSE,
+    caption = tags$caption(
+    style = 'caption-side: top; text-align: center; font-size: 20px; font-weight: bold;',"Revisions to the CES Non-Farm Payroll Employment number \n(January 1979 - July 2025)"),
+    options = list(
+      searching = FALSE,
+      info = FALSE,
+      lengthChange = FALSE
+    )
+  )
+
+```
+
+## Data Integration and Exploration
+
+To investigate trends in CES levels and revisions, join together both tables and perform exploratory data analysis.
+
+```{r}
+# Join both tables using left join
+ces_joined <- ces_levels |>
+  left_join(ces_revisions, by = "date") |>
+  arrange(date) |>
+  mutate(
+    abs_revision = abs(revision),
+    pct_revision = percent(revision / final, accuracy = 1),
+    year = year(date)
+  ) |>
+  select(date, level, original, final, revision, abs_revision, pct_revision)
+
+# Display datatable
+ces_joined |>
+  datatable(
+    rownames = FALSE,
+    caption = tags$caption(
+    style = 'caption-side: top; text-align: center; font-size: 20px; font-weight: bold;',"CES Non-Farm Payroll Employment Combined Levels and Revisions  \n(January 1979 - July 2025)"),
+    options = list(
+      searching = FALSE,
+      info = FALSE,
+      lengthChange = FALSE
+    )
+  )
+```
+
+#### Visualization 1: CES Non-Farm Payroll Employment Number (1979-2025)
+
+```{r}
+library(ggplot2)
+
+ggplot(ces_joined, aes(x = date, y = level)) +
+  geom_line(color = "darkgreen") +
+  labs(
+    title = "CES Total Non-Farm Payroll Employment Number (1979-2025)",
+    x = "Year",
+    y = "Employment Level"
+  ) + 
+  scale_y_continuous(labels = scales::comma) + 
+  theme_minimal(base_size = 9) +               
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8)
+  )
+```
+
+#### Largest Revisions in CES History
+
+```{r}
+# Largest positive revision
+largest_positive <- ces_joined |>
+  slice_max(revision, n = 1)
+
+datatable(
+  largest_positive,
+  rownames = FALSE,
+  caption = tags$caption(
+    style = 'caption-side: top; text-align: center; font-size: 20px; font-weight: bold;',"Largest positive revision in CES history"),
+  options = list(
+    searching = FALSE,
+    info = FALSE,
+    lengthChange = FALSE,
+    paging = FALSE
+    )
+  )
+
+# Largest negative revision
+largest_negative <- ces_joined |>
+  slice_min(revision, n = 1) 
+
+datatable(
+  largest_negative,
+  rownames = FALSE,
+  caption = tags$caption(
+    style = 'caption-side: top; text-align: center; font-size: 20px; font-weight: bold;',"Largest negative revision in CES history"),
+  options = list(
+    searching = FALSE,
+    info = FALSE,
+    lengthChange = FALSE,
+    paging = FALSE
+    )
+  )
+```
+
+#### Visualization 2: Monthly Non-Farm Payroll Revisions (1979 - 2025)
+
+```{r}
+library(dplyr)
+
+# Extract min & max revision rows
+extrema <- ces_joined |>
+  slice(which.min(revision), which.max(revision))
+
+ggplot(ces_joined, aes(x = date, y = revision)) +
+  geom_line() +
+  
+  # Highlight min & max
+  geom_point(
+    data = extrema,
+    aes(x = date, y = revision),
+    color = c("darkgreen"),
+    size = 3
+  ) +
+  geom_text(
+    data = extrema,
+    aes(
+      label = ifelse(
+        revision == max(ces_joined$revision),
+        "437",
+        "-672"
+      )
+    ),
+    vjust = -1,
+    fontface = "bold",
+    size = 3
+  ) +
+  
+  labs(
+    title = "Monthly Non-Farm Payroll Revisions (1979-2025)",
+    subtitle = "Largest Positive and Negative Changes",
+    x = "Year",
+    y = "Monthly Revision"
+  ) +
+  scale_y_continuous(labels = scales::comma) +
+  theme_minimal(base_size = 9) +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8)
+  )
+
+```
+#### Absolute Revision as a Percentage of Overall Employment Level
+
+
+
+```{r}
+# Calculate absolute CES revision as a percentage of overall employment level
+rev_pct_year <- ces_joined |>
+  mutate(
+    pct_rev_level = abs_revision / level  
+  ) |>
+  group_by(year = lubridate::year(date)) |>
+  summarize(
+    avg_rev_pct = mean(pct_rev_level, na.rm = TRUE)
+  )
+
+overall_avg_rev_pct <- ces_joined |>
+  mutate(
+    pct_rev_level = abs_revision / level  
+  ) |>
+  summarize(
+    mean_rev_pct = mean(pct_rev_level, na.rm = TRUE)
+  )
+
+percent(overall_avg_rev_pct$mean_rev_pct, accuracy = 0.001)
+
+```
+
+
+```{r}
+ggplot(rev_pct_year, aes(x = year, y = avg_rev_pct)) +
+  geom_line(color = "darkgreen", linewidth = 1) +
+  geom_point(color = "darkgreen") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 0.01)) + 
+  labs(
+    title = "Average Absolute CES Revision as % of Employment Level (1979–2025)",
+    x = "Year",
+    y = "Avg Revision (% of Level)"
+  ) +
+  theme_minimal(base_size = 9) +               
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8)
+  )
+
+```
+
+#### CES Revisions Statistics by Year and Decade
+
+```{r}
+# Add year and decade column
+ces_year <- ces_joined |>
+  mutate(
+    year = year(date),
+    decade = floor(year / 10) * 10
+  )
+  
+# Fraction of positive revision in each year
+positive_year <- ces_year |>
+  group_by(year) |>
+  summarize(
+    fraction_positive = mean(revision > 0, na.rm = TRUE),
+    abs_rev = mean(abs_revision)
+  ) |>
+  arrange(year)
+
+#Display datatable
+datatable(
+  positive_year,
+  rownames = FALSE,
+  caption = tags$caption(
+    style = 'caption-side: top; text-align: center; font-size: 20px; font-weight: bold;',"CES Revisions Statistics by Year"),
+  options = list(
+    searching = FALSE,
+    info = FALSE,
+    lengthChange = FALSE
+  )
+) |>
+  formatPercentage("fraction_positive") |>
+  formatRound("abs_rev",1)
+  
+# Fraction of positive revision in each decade
+positive_decade <- ces_year |>
+  group_by(decade) |>
+  summarize(
+    fraction_positive = mean(revision > 0, na.rm = TRUE),
+    abs_rev = mean(abs_revision)
+  ) |>
+  arrange(decade)
+
+# Display datatable
+datatable(
+  positive_decade,
+  rownames = FALSE,
+  caption = tags$caption(
+    style = 'caption-side: top; text-align: center; font-size: 20px; font-weight: bold;',
+    "CES Revisions Statistics by Decade"
+  ),
+  options = list(
+    searching = FALSE,
+    info = FALSE,
+    lengthChange = FALSE,
+    paging = FALSE
+    )
+  ) |>
+  formatPercentage("fraction_positive") |>
+  formatRound("abs_rev",1)
+
+```
+
+#### Visualization 3: Fraction of Positive CES Revisions by Month (1979-2025)
+
+```{r}
+
+# Aggregate fraction of positive revision by Month
+ces_month <- ces_joined |>
+  mutate(
+    month = month(date, label = TRUE, abbr = TRUE)
+    
+  )
+positive_month <- ces_month |>
+  group_by(month) |>
+  summarize(
+    fraction_positive = mean(revision > 0, na.rm = TRUE),
+    abs_rev = mean(abs_revision)
+  ) |>
+  arrange(month)
+
+# Plot share of positive revision in each month 
+ggplot(positive_month, aes(month, fraction_positive)) +
+  geom_col(fill = "darkgreen") +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  labs(
+    title = "Fraction of Positive CES Revisions by Month (1979-2025)",
+    x = "Month",
+    y = "Fraction of Positive Revisions"
+  ) +
+  theme_minimal()+
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8)
+  )
+```
+
+#### Visualization 4: Distrbution of Revisions (1979-2025)
+
+```{r}
+ggplot(ces_joined, aes(x = revision)) +
+  geom_histogram(binwidth = 50, fill = "darkgreen", color = "black") +
+  labs(
+    title = "Distribution of Revisions (1979-2025)",
+    x = "Revision",
+    y = "Count of Months"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+```
+
+## Statistical Inference
+
+#### Has the fraction of negative revisions increased post-2000?
+
+```{r}
+# Prepare CES test data
+ces_test <- ces_joined |>
+  mutate(
+    negative = revision < 0,
+    period = if_else(year(date) < 2000, "pre2000", "post2000")
+  ) |>
+  group_by(period) |>
+  summarize(
+    n = n(),
+    neg_count = sum(negative)
+  )
+
+# Run prop-test
+prop_test <- prop.test(x = ces_test$neg_count, n = ces_test$n)
+
+# Tidy the result and display
+prop_test <- broom::tidy(prop_test) |>
+  dplyr::select(estimate1, estimate2, statistic, p.value, conf.low, conf.high) |>
+  rename(
+    `Pre-2000 (%)` = estimate1,
+    `Post-2000 (%)` = estimate2,
+    `X-squared` = statistic,
+    `p-value` = p.value,
+    `CI Lower (%)` = conf.low,
+    `CI Upper (%)` = conf.high
+  ) |>
+  mutate(across(c(`Pre-2000 (%)`, `Post-2000 (%)`, `CI Lower (%)`, `CI Upper (%)`),
+                ~ percent(., accuracy = 0.1)))
+
+knitr::kable(prop_test,
+             caption = "Prop-Test: Negative CES Revisions Pre- vs Post-2000")
+
+
+```
+
+Pre-2000, 44.3% of CES revisions were negative, compared to 40.5% post-2000. This indicates a slight decrease negative revisions. A proportion test was conducted and the results confirms that the difference is not statistically significant with an X-squared of 0.6785 and a p-value of 0.4101. The 95% confidence interval for the difference is from -4.8% to 12.4%, which means that the observed change could be due to random variation. There is no evidence that the fraction of negative CES revisions increased post-2000.
+
+#### Is the average revision significantly different from zero?
+
+```{r}
+# Run t-test
+t_test <- t.test(ces_joined$revision, mu = 0)
+
+# Tidy the results for a nice table
+t_test <- broom::tidy(t_test) |>
+  select(estimate, statistic, p.value, conf.low, conf.high) |>
+  rename(
+    `Mean Revision` = estimate,
+    `t-statistic` = statistic,
+    `p-value` = p.value,
+    `CI Lower` = conf.low,
+    `CI Upper` = conf.high
+  ) |>
+  mutate(across(c(`Mean Revision`, `CI Lower`, `CI Upper`), ~ round(., 3)))
+
+knitr::kable(t_test,
+             caption = "T-Test: Average CES Revision different from zero")
+```
+
+The t-test shows that the mean CES revision is 11.48, with a 95% confidence interval ranging from 4.56 to 18.39. The t-stat is 3.26 and the p-value is 0.0012, which is way below the 0.05 threshold, indicating that the average revision is significantly different from zero. It shows that there is upward bias in CES revisions between 1979 and 2025. As confidence interval does not include zero, this reinforces that the average is unlikely to be due to random chance.
+
+## Fact Check BLS Revisions
+
+### Claim 1: The BLS Monthly Job Reports are Highly Inaccurate. Often Overstating Employment, Later Being Revised
+
+[“BLS Has Lengthy History of Inaccuracies, Incompetence” — The White House, August 1, 2025](https://www.whitehouse.gov/articles/2025/08/bls-has-lengthy-history-of-inaccuracies-incompetence/)
+
+```{r}
+knitr::kable(t_test,
+             caption = "T-Test: Average CES Revision different from zero")
+```
+
+```{r}
+datatable(
+  positive_decade,
+  rownames = FALSE,
+  caption = tags$caption(
+    style = 'caption-side: top; text-align: center; font-size: 20px; font-weight: bold;',
+    "CES Revisions Statistics by Decade"
+  ),
+  options = list(
+    searching = FALSE,
+    info = FALSE,
+    lengthChange = FALSE,
+    paging = FALSE
+    )
+  ) |>
+  formatPercentage("fraction_positive") |>
+  formatRound("abs_rev",1)
+```
+```{r}
+ggplot(positive_month, aes(month, fraction_positive)) +
+  geom_col(fill = "darkgreen") +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  labs(
+    title = "Fraction of Positive CES Revisions by Month (1979-2025)",
+    x = "Month",
+    y = "Fraction of Positive Revisions"
+  ) +
+  theme_minimal()+
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8)
+  )
+```
+
+```{r}
+ggplot(ces_joined, aes(x = revision)) +
+  geom_histogram(binwidth = 50, fill = "darkgreen", color = "black") +
+  labs(
+    title = "Distribution of Revisions (1979-2025)",
+    x = "Revision",
+    y = "Count of Months"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    axis.title = element_text(size = 12)
+  )
+```
+The distribution of CES revisions shows a tight clustering around zero with almost a symmetric positive and negative values, showing that most revisions are small routine adjustments rather than systematic downward corrections. This visual impression is reinforced by the decade-level statistics: the fraction of positive revisions ranges from **42%** in the 1970s to **69%** in the 1990s and **63%** in the 2010s. There was no decade showing a pattern of negative revision. The average absolute revision remains within a fairly narrow range of **35–95 thousand**, reflecting consistent numbers over time. With the share of positive revisions typically falling between **50% and 65%**, the monthly numbers also demonstrating that upward and downward revisions occur with comparable frequency throughout the years. The t-test on the mean revision also supports this conclusion as the average revision is **11.48 thousand jobs**, a statistically significant but economically small upward adjustment that contradicts the claim of persistent overestimation leading to large downward revisions. Altogether, these pieces of evidence show that CES revisions exhibit normal statistical variation and do not support the claim that BLS regularly publishes overly optimistic or unreliable initial jobs numbers.
+
+**Verdict:** False
+
+### Claim 2 (Fake): Commentator Alleges BLS Is ‘Losing Control’ of Jobs Data Amid Growing Revision Errors
+
+```{r}
+prop_test <- broom::tidy(prop_test) |>
+  dplyr::select(estimate1, estimate2, statistic, p.value, conf.low, conf.high) |>
+  rename(
+    `Pre-2000 (%)` = estimate1,
+    `Post-2000 (%)` = estimate2,
+    `X-squared` = statistic,
+    `p-value` = p.value,
+    `CI Lower (%)` = conf.low,
+    `CI Upper (%)` = conf.high
+  ) |>
+  mutate(across(c(`Pre-2000 (%)`, `Post-2000 (%)`, `CI Lower (%)`, `CI Upper (%)`),
+                ~ percent(., accuracy = 0.1)))
+
+knitr::kable(prop_test,
+             caption = "Prop-Test: Negative CES Revisions Pre- vs Post-2000")
+```
+```{r}
+ggplot(ces_joined, aes(x = date, y = revision)) +
+  geom_line() +
+  
+  # Highlight min & max
+  geom_point(
+    data = extrema,
+    aes(x = date, y = revision),
+    color = c("darkgreen"),
+    size = 3
+  ) +
+  geom_text(
+    data = extrema,
+    aes(
+      label = ifelse(
+        revision == max(ces_joined$revision),
+        "437",
+        "-672"
+      )
+    ),
+    vjust = -1,
+    fontface = "bold",
+    size = 3
+  ) +
+  
+  labs(
+    title = "Monthly Non-Farm Payroll Revisions (1979-2025)",
+    subtitle = "Largest Positive and Negative Changes",
+    x = "Year",
+    y = "Monthly Revision"
+  ) +
+  scale_y_continuous(labels = scales::comma) +
+  theme_minimal(base_size = 9) +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8)
+  )
+```
+```{r}
+ggplot(rev_pct_year, aes(x = year, y = avg_rev_pct)) +
+  geom_line(color = "darkgreen", linewidth = 1) +
+  geom_point(color = "darkgreen") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 0.01)) + 
+  labs(
+    title = "Average Absolute CES Revision as % of Employment Level (1979–2025)",
+    x = "Year",
+    y = "Avg Revision (% of Level)"
+  ) +
+  theme_minimal(base_size = 9) +               
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8)
+  )
+
+```
+The claim that BLS job reports have become increasingly unreliable is not supported by the data. Proportion test results show that the share of negative revisions has not increased over time, falling slightly from **44.3%** before 2000 to **40.5%** afterwards. This contradicts that most revisions are now downward corrections. The Monthly CES Revisions plot further shows that revisions generally fluctuate around zero, with most falling within a modest range and no long-run trend toward larger errors. Although the **largest negative (–672,000 in March 2020)** and **positive (+437,000 in November 2021)** revisions appear dramatic, both occurred during COVID-19 and represent only **0.45%** and **0.29%** of total employment, respectively. Outside of this period, revisions are proportionally tiny: the Average Absolute Revision as % of Employment plot shows values typically **between 0.02% and 0.05%**, and the overall average revision across all years is just **0.048%** of total employment. These findings demonstrate that CES revisions are stable and expected, debunking the claim of deteriorating data quality.
+
+**Verdict:** False
