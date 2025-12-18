@@ -71,18 +71,227 @@ fastfood_tract <- fastfood_raw |>
   rename(acs_pop = B01003_001E) |>
   mutate(acs_pop = as.numeric(acs_pop)) |>
   filter(acs_pop > 0)
-  
 ```
 
 ## Data Exploration
 
-Let's look at the joined dataset. Now that we have both dataset combined we can calculate the 
+Let's look at the joined dataset. Now that we have both dataset combined, we can calculate the 
 
 ```{r}
-datatable(fastfood_tract)
+fastfood_tract |>
+  select(
+    FIPS = tract_fips20,
+    GEOID = GEO_ID,
+    `Total Population` = acs_pop,
+    `Fast Food Count` = count_fastfood
+  ) |>
+  datatable(
+    caption = "Fast Food Restaurants and Population by Census Tract",
+    rownames = FALSE,
+    options = list(
+      pageLength = 10,
+      scrollX = TRUE
+    )
+  ) |>
+  formatRound("Total Population", 0, mark = ",") |>
+  formatRound("Fast Food Count", 0)
+          
 ```
 
-### Fast Food Restaurants per 1000 people by County
+### Summary Statistics by Census Tract
+
+#### Fast Food Count
+
+The distribution of fast food restaurants across census tract is highly right skewered as there is a large number of census tracts with no fast food restaurants. As the number of restaurants increase, the number of census tract decreases rapidly. 
+```{r}
+summary(fastfood_tract$count_fastfood)
+
+fastfood_tract |>
+  ggplot(aes(x = count_fastfood)) +
+  geom_histogram(
+    bins = 50,
+    fill = "#9badff",
+    color = "white",
+    linewidth = 0.3
+  ) +
+  labs(
+    title = "Distribution of Fast Food Count by Census Tract",
+    caption = "Source: NaNDA Eating and Drinking Places by Census Tract & ZCTA, 1990–2021\nU.S. Census Bureau ACS B01003 (2019)",
+    x = "Fast Food Count",
+    y = "# of Census Tracts"
+  ) +
+  theme(
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
+    plot.caption = element_text(size = 10, face = "italic", hjust = 0)
+  )
+
+```
+
+#### Total Population
+The distribution of population across census tracts is relatively contained and mildly right skewed between 2,000 and 6,000 people and very few extreme outliers. The median falls at 3,852, representing the population of a typical census tract.
+```{r}
+summary(fastfood_tract$acs_pop)
+
+fastfood_tract |>
+  ggplot(aes(x = acs_pop)) +
+  geom_histogram(
+    bins = 50,
+    fill = "#9badff",
+    color = "white",
+    linewidth = 0.3
+  ) +
+  geom_vline(
+    xintercept = median(fastfood_tract$acs_pop, na.rm = TRUE),
+    linetype = "dashed",
+    linewidth = 0.8,
+    color = "#0432FF"
+  ) +
+  labs(
+    title = "Distribution of Population by Census Tract",
+    caption = "Source: NaNDA Eating and Drinking Places by Census Tract & ZCTA, 1990–2021\nU.S. Census Bureau ACS B01003 (2019)",
+    x = "Population",
+    y = "# of Census Tracts"
+  ) +
+  theme(
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
+    plot.caption = element_text(size = 10, face = "italic", hjust = 0)
+  )
+
+```
+Now that we have a better understanding of the distribution of fast food counts and population by census tract, the team shifted focus on analyzing the fast food density, measured by count of fast food restaurants per 1,000 people to have a relative comparison of fast food access across census tracts. During the early days of this project, the team found that looking only at just the count of fast food restaurants is misleading because census tracts vary in the number of people living in them, while fast food restaurants are unevenly distributed. For example, states with larger total population have larger amount of fast food restaurants available. Using fast food density allows for a more meaning comparison as it accounts for population size.
+
+In the next section, we will look at fast food density at the county and state level to examine any patterns that can help us answer the overarching question.
+
+## Fast Food Density by State
+
+To examine at the national scale, we first aggregated fast food restaurant counts from the census tract level to the state level. Looking at the data at a state level reduces local variability caused by small population census tracts and also provide a clearer view of regional differences in fast food restaurant availability. For a fa
+
+
+
+```{r}
+# Aggregate tract to state
+fastfood_state <- fastfood_tract |>
+  mutate(state_fips20 = substr(tract_fips20, 1, 2)) |>
+  group_by(state_fips20) |>
+  summarize(
+    total_fastfood = sum(count_fastfood, na.rm = TRUE),
+    total_pop      = sum(acs_pop, na.rm = TRUE),
+    den_fastfood   = (total_fastfood / total_pop) * 1000,
+    .groups = "drop"
+  ) |>
+  filter(total_pop > 0)
+
+# Load state shapefile and join
+state_shapes <- states(year = 2019, cb = TRUE) |>
+  mutate(STATEFP = as.character(STATEFP))
+
+fastfood_map_state <- state_shapes |>
+  left_join(fastfood_state, by = c("STATEFP" = "state_fips20"))
+```
+#### Top 10 States with the Highest Fast Food Density
+```{r}
+# Create datatable
+datatable(
+  fastfood_map_state |>
+    st_drop_geometry() |>
+    arrange(desc(den_fastfood)) |>
+    slice_max(den_fastfood, n = 10) |>
+    select(
+      State = NAME,
+      `Fast Food Density` = den_fastfood,
+      `Total Population` = total_pop, 
+      `Fast Food Count` = total_fastfood),
+  rownames = FALSE,
+  caption = "Top 10 States with the Highest Fast Food Density",
+  options = list(
+    searching = FALSE,
+    scrollX = FALSE,
+    autoWidth = TRUE
+  )
+) |>
+  formatRound("Fast Food Density", 2) |>
+  formatRound("Total Population", 0, mark = ",") |>
+  formatRound("Fast Food Count", 0)
+```
+
+#### Heat Map ofFast Food Density by State Map
+
+```{r}
+# Create heat map 
+ggplot(fastfood_map_state) +
+  geom_sf(aes(fill = den_fastfood), color = "white") +
+  scale_fill_gradient(
+    low = "#ffffff",
+    high = "#932092",
+    name = "Fast Food\nDensity", limits = c(NA,NA)
+                       )+
+  coord_sf(
+    xlim = c(-125, -66),
+    ylim = c(24, 50),
+    expand = FALSE
+  ) +
+  labs(
+    title = "Fast Food Restaurants per 1,000 People",
+    subtitle = "State, 2019",
+    caption = "Source: NaNDA Eating and Drinking Places by Census Tract & ZCTA, 1990–2021\nU.S. Census Bureau ACS B01003 (2019)"
+  ) +
+  
+  theme_void() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
+    plot.margin = margin(5, 5, 5, 5),
+    plot.caption = element_text(size = 10, face = "italic", hjust = 0)
+  )
+```
+
+#### Top 10 States Highest Fast Food Concentration
+
+```{r}
+# Rank and flag top 10 states
+fastfood_map_state_topflag <- fastfood_map_state |>
+  arrange(desc(den_fastfood)) |>
+  mutate(
+    rank = row_number(),
+    den_top10 = ifelse(rank <= 10, den_fastfood, NA_real_)
+  )
+
+ggplot(fastfood_map_state_topflag) +
+  geom_sf(aes(fill = den_top10),
+          color = "white",
+          linewidth = 0.3) +
+  scale_fill_distiller(
+    palette = "Blues",      # Nice clean blues
+    direction = 1,          # Light → dark
+    na.value = "#e0e0e0",   # Light grey for non–top 10
+    name = "Fast-Food per\n1,000 People"
+  ) +
+  labs(
+    title = "Top 10 States with the Most Fast-Food Restaurants per 1,000 People",
+    subtitle = "Non–Top 10 States Shown in Grey",
+    caption = "Source: NaNDA Tract20 (1990–2021) & U.S. Census ACS 2019"
+  ) +
+  theme_void() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 18, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    plot.caption = element_text(size = 9, hjust = 0),
+    plot.margin = margin(10, 10, 10, 10)
+  )
+
+```
+
+
+
+
+
+
+### Fast Food Restaurants per 1,000 people by County
+
 
 ```{r}
 #State look up
@@ -125,17 +334,21 @@ datatable(
     arrange(desc(den_fastfood)) |>
     select(
       County = NAME,
-      State = State_Abbr,
-      State_Name,
-      total_fastfood,
-      total_pop,
-      den_fastfood
+      State = State_Name,
+      `Fast Food Count` = total_fastfood,
+      `Total Population` = total_pop,
+      `Fast Food Density` = den_fastfood
     ),
-  caption = "Fast Food Restaurants per 1,000 People (County, 2019)",
-  options = list(pageLength = 10, scrollX = TRUE)
+  caption = "Fast Food Restaurants per 1,000 People by County (2019)",
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE
+  )
 ) |>
-  formatRound("total_fastfood", 0, mark = ",") |>
-  formatRound("den_fastfood", 2)
+  formatRound("Fast Food Count", 0, mark = ",") |>
+  formatRound("Total Population", 0, mark = ",") |>
+  formatRound("Fast Food Density", 2)
 ```
 #### Distribution of Fast Food Density per County
 ```{r}
@@ -205,115 +418,6 @@ ggplot(fastfood_map_county) +
 
 ```
 
-### Fast Food Restaurants per 1000 people by State
 
-#### Datatable
-
-```{r}
-# Aggregate tract to state
-fastfood_state <- fastfood_tract |>
-  mutate(state_fips20 = substr(tract_fips20, 1, 2)) |>
-  group_by(state_fips20) |>
-  summarize(
-    total_fastfood = sum(count_fastfood, na.rm = TRUE),
-    total_pop      = sum(acs_pop, na.rm = TRUE),
-    den_fastfood   = (total_fastfood / total_pop) * 1000,
-    .groups = "drop"
-  ) |>
-  filter(total_pop > 0)
-
-# Load state shapefile and join
-state_shapes <- states(year = 2019, cb = TRUE) |>
-  mutate(STATEFP = as.character(STATEFP))
-
-fastfood_map_state <- state_shapes |>
-  left_join(fastfood_state, by = c("STATEFP" = "state_fips20"))
-
-# Creat datatable
-datatable(
-  fastfood_map_state |>
-    st_drop_geometry() |>
-    arrange(desc(den_fastfood)) |>
-    slice_max(den_fastfood, n = 10) |>
-    select(State = NAME, den_fastfood,total_pop,total_fastfood),
-  rownames = FALSE,
-  caption = "Fast Food Restaurants per 1,000 People (State, 2019)",
-  options = list(
-    searching = FALSE,
-    scrollX = FALSE,
-    autoWidth = TRUE
-  )
-) |>
-  formatRound("den_fastfood", 2)
-```
-
-#### Heat Map
-
-```{r}
-# Create heat map 
-ggplot(fastfood_map_state) +
-  geom_sf(aes(fill = den_fastfood), color = "white") +
-  scale_fill_gradient(
-    low = "#ffffff",
-    high = "#932092",
-    name = "Fast Food\nDensity", limits = c(NA,NA)
-                       )+
-  coord_sf(
-    xlim = c(-125, -66),
-    ylim = c(24, 50),
-    expand = FALSE
-  ) +
-  labs(
-    title = "Fast Food Restaurants per 1,000 People",
-    subtitle = "State, 2019",
-    caption = "Source: NaNDA Eating and Drinking Places by Census Tract & ZCTA, 1990–2021\nU.S. Census Bureau ACS B01003 (2019)"
-  ) +
-  
-  theme_void() +
-  theme(
-    legend.position = "right",
-    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
-    plot.subtitle = element_text(hjust = 0.5),
-    plot.margin = margin(5, 5, 5, 5),
-    plot.caption = element_text(size = 10, face = "italic", hjust = 0)
-  )
-```
-
-#### Top 10 States Highest Fast Food Concentration
-
-```{r}
-# Rank and flag top 10 states
-fastfood_map_state_topflag <- fastfood_map_state |>
-  arrange(desc(den_fastfood)) |>
-  mutate(
-    rank = row_number(),
-    den_top10 = ifelse(rank <= 10, den_fastfood, NA_real_)
-  )
-
-ggplot(fastfood_map_state_topflag) +
-  geom_sf(aes(fill = den_top10),
-          color = "white",
-          linewidth = 0.3) +
-  scale_fill_distiller(
-    palette = "Blues",      # Nice clean blues
-    direction = 1,          # Light → dark
-    na.value = "#e0e0e0",   # Light grey for non–top 10
-    name = "Fast-Food per\n1,000 People"
-  ) +
-  labs(
-    title = "Top 10 States with the Most Fast-Food Restaurants per 1,000 People",
-    subtitle = "Non–Top 10 States Shown in Grey",
-    caption = "Source: NaNDA Tract20 (1990–2021) & U.S. Census ACS 2019"
-  ) +
-  theme_void() +
-  theme(
-    legend.position = "right",
-    plot.title = element_text(size = 18, face = "bold"),
-    plot.subtitle = element_text(size = 12),
-    plot.caption = element_text(size = 9, hjust = 0),
-    plot.margin = margin(10, 10, 10, 10)
-  )
-
-```
 
 
