@@ -18,6 +18,10 @@ execute:
 
 ## Introduction
 
+According to the [CDC](https://blogs.cdc.gov/nchs/2025/06/26/7784/), 32% of adults in the United States consume fast food on any given day between August 2021 and August 2023, making access to fast food a relevant factor when examining health related risks. This project analyzes fast food restaurant distribution across the country to answer the question: **How many fast food restaurants per capita are there in each state and county?**
+
+The motivation for this analysis is rooted in the overarching question: **Are food deserts in the US linked to health problems like diabetes?** For further information about this project and to see other analytical questions tied to this investigation, click [here](https://festrada0817.github.io/STA9750-2025-FALL/FinalProjectPresentation2025.html).
+
 ## Data Acquisition
 ```{r}
 library(dplyr)
@@ -169,7 +173,6 @@ In the next section, we will look at fast food density at the county and state l
 To examine at the national scale, we first aggregated fast food restaurant counts from the census tract level to the state level. Looking at the data at a state level reduces local variability caused by small population census tracts and also provide a clearer view of regional differences in fast food restaurant availability. For a fa
 
 
-
 ```{r}
 # Aggregate tract to state
 fastfood_state <- fastfood_tract |>
@@ -216,7 +219,7 @@ datatable(
   formatRound("Fast Food Count", 0)
 ```
 
-#### Heat Map ofFast Food Density by State Map
+#### Heat Map of Fast Food Density by State
 
 ```{r}
 # Create heat map 
@@ -233,8 +236,7 @@ ggplot(fastfood_map_state) +
     expand = FALSE
   ) +
   labs(
-    title = "Fast Food Restaurants per 1,000 People",
-    subtitle = "State, 2019",
+    title = "Fast Food Density by State",
     caption = "Source: NaNDA Eating and Drinking Places by Census Tract & ZCTA, 1990–2021\nU.S. Census Bureau ACS B01003 (2019)"
   ) +
   
