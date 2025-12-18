@@ -170,7 +170,7 @@ In the next section, we will look at fast food density at the county and state l
 
 ## Fast Food Density by State
 
-To examine at the national scale, we first aggregated fast food restaurant counts from the census tract level to the state level. Looking at the data at a state level reduces local variability caused by small population census tracts and also provide a clearer view of regional differences in fast food restaurant availability. For a fa
+To examine fast food density at the national scale, we first aggregated fast food restaurant counts from the census tract level to the state level. Looking at the data at a state level reduces local variability caused by small population census tracts and also provide a clearer view of regional differences in fast food restaurant availability. The state FIPS code is extracted from each census tract, and fast food restaurant counts and population are summed before calculating the fast food density by dividing the count of fast food restaurants and population then multiplying by 1,000. Next, we used a U.S. State boundary shapefile for 2019 and joined it with the aggregated fast food density to create a choropleth map for visualization.
 
 
 ```{r}
@@ -193,34 +193,9 @@ state_shapes <- states(year = 2019, cb = TRUE) |>
 fastfood_map_state <- state_shapes |>
   left_join(fastfood_state, by = c("STATEFP" = "state_fips20"))
 ```
-#### Top 10 States with the Highest Fast Food Density
-```{r}
-# Create datatable
-datatable(
-  fastfood_map_state |>
-    st_drop_geometry() |>
-    arrange(desc(den_fastfood)) |>
-    slice_max(den_fastfood, n = 10) |>
-    select(
-      State = NAME,
-      `Fast Food Density` = den_fastfood,
-      `Total Population` = total_pop, 
-      `Fast Food Count` = total_fastfood),
-  rownames = FALSE,
-  caption = "Top 10 States with the Highest Fast Food Density",
-  options = list(
-    searching = FALSE,
-    scrollX = FALSE,
-    autoWidth = TRUE
-  )
-) |>
-  formatRound("Fast Food Density", 2) |>
-  formatRound("Total Population", 0, mark = ",") |>
-  formatRound("Fast Food Count", 0)
-```
-
 #### Heat Map of Fast Food Density by State
 
+This choropleth shows a clear regional pattern, especially in the South with a darker shade indicating higher fast food density than the Northeast, Midwest, and West. There is a notable exception in the West. Let's now look at a datatable with state level fast food density values and its corresponding fast food count and total popultation.
 ```{r}
 # Create heat map 
 ggplot(fastfood_map_state) +
@@ -249,6 +224,37 @@ ggplot(fastfood_map_state) +
     plot.caption = element_text(size = 10, face = "italic", hjust = 0)
   )
 ```
+#### Top 10 States with the Highest Fast Food Density
+
+These results show a clear trend of Southern states dominating the top rankings with 8 of out 10 states with highest fast food density. Mississippi ranks the highest with 0.30 fast food restaurants per 1,000 people. Wyoming stands out as an outlier outside the South, sitting at rank 3 with a fast food density of 0.28.
+
+This pattern indicates that the South and select western regions face challenges in accessing healthy food and is saturated with convenient fast food options.
+```{r}
+# Create datatable
+datatable(
+  fastfood_map_state |>
+    st_drop_geometry() |>
+    arrange(desc(den_fastfood)) |>
+    slice_max(den_fastfood, n = 10) |>
+    select(
+      State = NAME,
+      `Fast Food Density` = den_fastfood,
+      `Total Population` = total_pop, 
+      `Fast Food Count` = total_fastfood),
+  rownames = FALSE,
+  caption = "Top 10 States with the Highest Fast Food Density",
+  options = list(
+    searching = FALSE,
+    scrollX = FALSE,
+    autoWidth = TRUE
+  )
+) |>
+  formatRound("Fast Food Density", 2) |>
+  formatRound("Total Population", 0, mark = ",") |>
+  formatRound("Fast Food Count", 0)
+```
+
+
 
 #### Top 10 States Highest Fast Food Concentration
 
