@@ -22,6 +22,8 @@ According to the [CDC](https://blogs.cdc.gov/nchs/2025/06/26/7784/), 32% of adul
 
 The motivation for this analysis is rooted in the overarching question: **Are food deserts in the US linked to health problems like diabetes?** For further information about this project and to see other analytical questions tied to this investigation, click [here](https://festrada0817.github.io/STA9750-2025-FALL/FinalProjectPresentation2025.html).
 
+Using the **NaNDA: Eating and Drinking Places by Census Tract & ZCTA, 1990–2021** with the **U.S. Census Bureau American Community Survey B01003 (2019)**, the team analyze the availability of fast food restaurants across the United States and in which state and county can we find the highest density of fast food restaurants to support the team's overarching question.
+
 ## Data Acquisition
 ```{r}
 library(dplyr)
@@ -52,7 +54,9 @@ fastfood_raw <- eatdrink_tract |>
 
 ### U.S. Census Bureau ACS B01003 (2019)
 
-[The U.S. Census Bureau American Community Survey (ACS) Table B01003](https://data.census.gov/table/ACSDT5Y2019.B01003?q=Population+Total&g=010XX00US$1400000) provides the total population for a given geographic area. The ACS B01003 table comes from 2019. 
+The [U.S. Census Bureau’s American Community Survey (ACS) Table B01003](https://data.census.gov/table/ACSDT5Y2019.B01003?q=Population+Total&g=010XX00US$1400000) provides estimates of total population for a given geographic area, serving as a foundational demographic measure in this analysis. The ACS B01003 table used here is based on the 2019 five year estimates, which are designed to provide more reliable population figures, particularly for smaller geographic units such as census tracts and counties. 
+
+
 
 ```{r}
 # Load dataset
@@ -61,7 +65,8 @@ pop_2019 <- read_csv("ACSDT5Y2019.B01003-Data.csv")
 
 ### Join Both Datasets
 
-The NaNDA dataset uses tract FIPS (Federal Information Processing Standards) to identify each census tract within the U.S., while ACS B01003 uses GEOID, a full numeric code, to uniquely identify all administrative and statistical geographic areas. GEOIDs encompasses FIPS codes and will be used to join both datasets. 
+The NaNDA dataset identifies locations using census tract–level FIPS codes, which are standard numeric identifiers assigned to each census tract in the U.S, while ACS B01003 uses GEOID, which are longer numeric codes to uniquely identify all administrative and statistical geographic areas. GEOIDs encompasses FIPS codes and will be used to join both datasets. Using GEOIDs provides a reliable way to align fast food counts with population figures at the census tract level without losing geographic accuracy.
+
 ```{r}
 
 # Get FIPS from GEOID
@@ -228,7 +233,7 @@ ggplot(fastfood_map_state) +
 
 These results show a clear trend of Southern states dominating the top rankings with 8 of out 10 states with highest fast food density. Mississippi ranks the highest with 0.30 fast food restaurants per 1,000 people. Wyoming stands out as an outlier outside the South, sitting at rank 3 with a fast food density of 0.28.
 
-This pattern indicates that the South and select western regions face challenges in accessing healthy food and is saturated with convenient fast food options.
+This pattern suggests that the South and select western regions face challenges in accessing healthy food and is saturated with convenient fast food options.
 ```{r}
 # Create datatable
 datatable(
@@ -255,52 +260,11 @@ datatable(
 ```
 
 
+### Fast Food Density by County
 
-#### Top 10 States Highest Fast Food Concentration
+While the state level analysis provides an insightful high level overview of fast food restaurant availability across the United States, it can prevent us from seeing substantial variation within states. Larger and more diverse states may have both urban counties with relatively low fast food density and rural counties with disproportionately higher fast food density when adjusted for population size. To better capture this local heterogeneity and identify potential counties with higher fast food density, let’s go on with a more granular view of the analysis and shift from state level to county level. Examining the joined dataset at the county level allows for a more granular understanding of how fast food restaurants are distributed and helps reveal patterns that may be more directly relevant to county level health problems like diabetes and obesity and quality food access that can tie in with the overarching question.
 
-```{r}
-# Rank and flag top 10 states
-fastfood_map_state_topflag <- fastfood_map_state |>
-  arrange(desc(den_fastfood)) |>
-  mutate(
-    rank = row_number(),
-    den_top10 = ifelse(rank <= 10, den_fastfood, NA_real_)
-  )
-
-ggplot(fastfood_map_state_topflag) +
-  geom_sf(aes(fill = den_top10),
-          color = "white",
-          linewidth = 0.3) +
-  scale_fill_distiller(
-    palette = "Blues",      # Nice clean blues
-    direction = 1,          # Light → dark
-    na.value = "#e0e0e0",   # Light grey for non–top 10
-    name = "Fast-Food per\n1,000 People"
-  ) +
-  labs(
-    title = "Top 10 States with the Most Fast-Food Restaurants per 1,000 People",
-    subtitle = "Non–Top 10 States Shown in Grey",
-    caption = "Source: NaNDA Tract20 (1990–2021) & U.S. Census ACS 2019"
-  ) +
-  theme_void() +
-  theme(
-    legend.position = "right",
-    plot.title = element_text(size = 18, face = "bold"),
-    plot.subtitle = element_text(size = 12),
-    plot.caption = element_text(size = 9, hjust = 0),
-    plot.margin = margin(10, 10, 10, 10)
-  )
-
-```
-
-
-
-
-
-
-### Fast Food Restaurants per 1,000 people by County
-
-
+Similar to the state level analysis, let's take a look at the choropleth map at the county level to see any patterns.
 ```{r}
 #State look up
 state_lookup <- states(year = 2019) |>
@@ -334,30 +298,44 @@ fastfood_map_county <- county_shapes |>
   mutate(
     den_fastfood_plot = ifelse(den_fastfood == 0, NA, den_fastfood)
   )
-
-# Create datatable
-datatable(
-  fastfood_map_county |>
-    st_drop_geometry() |>
-    arrange(desc(den_fastfood)) |>
-    select(
-      County = NAME,
-      State = State_Name,
-      `Fast Food Count` = total_fastfood,
-      `Total Population` = total_pop,
-      `Fast Food Density` = den_fastfood
-    ),
-  caption = "Fast Food Restaurants per 1,000 People by County (2019)",
-  rownames = FALSE,
-  options = list(
-    pageLength = 10,
-    scrollX = TRUE
-  )
-) |>
-  formatRound("Fast Food Count", 0, mark = ",") |>
-  formatRound("Total Population", 0, mark = ",") |>
-  formatRound("Fast Food Density", 2)
 ```
+#### Heat Map of Fast Food Density by County
+```{r}
+ggplot(fastfood_map_county) +
+  geom_sf(aes(fill = den_fastfood), color = NA, linewidth = 0.1) +
+  
+  scale_fill_gradientn(
+  colours = c("grey90", "#e792e7", "#5b7cff", "#0432FF"),
+  name = "Fast Food\nDensity",
+  limits = c(NA, NA),
+  na.value = "#ffffff",
+  trans = "sqrt"
+  ) + 
+
+  coord_sf(
+    xlim = c(-125, -66),
+    ylim = c(24, 50),
+    expand = FALSE
+  ) +
+  
+  labs(
+    title = "Fast Food Density by County",
+    subtitle = "County, 2019",
+    caption = "Source: NaNDA Eating and Drinking Places by Census Tract & ZCTA, 1990–2021\nU.S. Census Bureau ACS B01003 (2019)"
+  ) +
+  
+  theme_void() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
+    plot.margin = margin(5, 5, 5, 5),
+    plot.caption = element_text(size = 10, face = "italic", hjust = 0)
+  )
+
+
+```
+
 #### Distribution of Fast Food Density per County
 ```{r}
 fastfood_map_county |>
@@ -389,41 +367,32 @@ fastfood_map_county |>
 
 
 ```
-#### County Map
+
+#### Top 10 Counties with the Highest Fast Food Density
 ```{r}
-ggplot(fastfood_map_county) +
-  geom_sf(aes(fill = den_fastfood), color = NA, linewidth = 0.1) +
-  
-  scale_fill_gradientn(
-  colours = c("grey90", "#e792e7", "#5b7cff", "#0432FF"),
-  name = "Fast Food\nDensity",
-  limits = c(NA, NA),
-  na.value = "#ffffff",
-  trans = "sqrt"
-  ) + 
-
-  coord_sf(
-    xlim = c(-125, -66),
-    ylim = c(24, 50),
-    expand = FALSE
-  ) +
-  
-  labs(
-    title = "Fast Food Restaurants per 1,000 People",
-    subtitle = "County, 2019",
-    caption = "Source: NaNDA Eating and Drinking Places by Census Tract & ZCTA, 1990–2021\nU.S. Census Bureau ACS B01003 (2019)"
-  ) +
-  
-  theme_void() +
-  theme(
-    legend.position = "right",
-    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
-    plot.subtitle = element_text(hjust = 0.5),
-    plot.margin = margin(5, 5, 5, 5),
-    plot.caption = element_text(size = 10, face = "italic", hjust = 0)
+# Create datatable
+datatable(
+  fastfood_map_county |>
+    st_drop_geometry() |>
+    arrange(desc(den_fastfood)) |>
+    slice_max(den_fastfood, n = 10) |>
+    select(
+      County = NAME,
+      State = State_Name,
+      `Fast Food Count` = total_fastfood,
+      `Total Population` = total_pop,
+      `Fast Food Density` = den_fastfood
+    ),
+  caption = "Fast Food Restaurants per 1,000 People by County (2019)",
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE
   )
-
-
+) |>
+  formatRound("Fast Food Count", 0, mark = ",") |>
+  formatRound("Total Population", 0, mark = ",") |>
+  formatRound("Fast Food Density", 2)
 ```
 
 
