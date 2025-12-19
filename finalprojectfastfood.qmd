@@ -84,8 +84,7 @@ fastfood_raw <- eatdrink_tract |>
 
 ### U.S. Census Bureau ACS B01003 (2019)
 
-The [U.S. Census Bureau’s American Community Survey (ACS) Table B01003](https://data.census.gov/table/ACSDT5Y2019.B01003?q=Population+Total&g=010XX00US$1400000) provides estimates of total population for a given geographic area, serving as a foundational demographic measure in this analysis. The ACS B01003 table used here is based on the 2019 five year estimates, which are designed to provide more reliable population figures, particularly for smaller geographic units such as census tracts and counties. 
-
+The [U.S. Census Bureau’s American Community Survey (ACS) Table B01003](https://data.census.gov/table/ACSDT5Y2019.B01003?q=Population+Total&g=010XX00US$1400000) provides estimates of total population for a given geographic area, serving as a foundational demographic measure in this analysis. The ACS B01003 table used here is based on the 2019 five year estimates, which are designed to provide more reliable population figures, particularly for smaller geographic units such as census tracts and counties. The ACS dataset was downloaded manually and created a reproducible import pipeline that verifies file availability and performs all subsequent processing steps.
 
 
 ```{r}
@@ -159,7 +158,8 @@ Looking at summary statistics helps understand the distribution of fast food ava
 
 #### Fast Food Count
 
-The distribution of fast food restaurants across census tract is highly right skewed as there is a large number of census tracts with no fast food restaurants. As the number of restaurants increase, the number of census tract decreases rapidly. 
+The distribution of fast food restaurants across census tracts is highly right-skewed, as a large share of census tracts have no fast food restaurants at all. As the number of restaurants increases, the number of census tracts declines rapidly, indicating that high fast-food counts are concentrated in a relatively small number of locations. This pattern is reflected in the summary statistics, where the minimum, first quartile, and median are all zero, while the mean is higher at 0.815 due to a small number of tracts with many restaurants. The maximum value of 22 highlights the presence of extreme outliers that pull the average upward, suggesting substantial variation in fast food availability across communities.
+
 ```{r}
 summary(fastfood_tract$count_fastfood)
 
@@ -192,7 +192,7 @@ fastfood_tract |>
 ```
 
 #### Total Population
-The distribution of population across census tracts is relatively contained and mildly right skewed between 2,000 and 6,000 people and very few extreme outliers. The median falls at 3,852, representing the population of a typical census tract.
+The distribution of population across census tracts is relatively contained and mildly right-skewed, with most tracts falling between approximately 2,000 and 6,000 residents and very few extreme outliers. The median population is 3,852, which represents the size of a typical census tract and aligns with Census Bureau guidelines for tract population ranges. This relatively tight distribution suggests that large differences in fast food density across tracts are less likely to be driven solely by population size and more likely reflect differences in the number of fast food restaurants present.
 ```{r}
 summary(fastfood_tract$acs_pop)
 
@@ -256,7 +256,7 @@ fastfood_map_state <- state_shapes |>
 ```
 #### Heat Map of Fast Food Density by State
 
-This choropleth shows a clear regional pattern, especially in the South with a darker shade indicating higher fast food density than the Northeast, Midwest, and West. There is a notable exception in the West. Let's now look at a datatable with state level fast food density values and its corresponding fast food count and total popultation.
+This choropleth shows a clear regional pattern, particularly in the South, where darker shading indicates a higher density of fast food restaurants compared to the Northeast, Midwest, and much of the West. A notable exception appears in the West, where one state exhibits relatively high fast food density despite the broader regional trend. To better understand these patterns, we next examine a datatable displaying state-level fast food density alongside the corresponding total number of fast food restaurants and total population.popultation.
 ```{r}
 # Create heat map 
 ggplot(fastfood_map_state) +
@@ -289,7 +289,7 @@ ggplot(fastfood_map_state) +
 
 These results show a clear trend of Southern states dominating the top rankings with 8 of out 10 states with highest fast food density. Mississippi ranks the highest with 0.30 fast food restaurants per 1,000 people. Wyoming stands out as an outlier outside the South, sitting at rank 3 with a fast food density of 0.28.
 
-This pattern suggests that the South and select western regions face challenges in accessing healthy food and is saturated with convenient fast food options.
+This pattern suggests that many Southern states, along with select western regions, may face greater challenges related to food access, where communities are more heavily saturated with convenient fast food options compared to healthier alternatives.
 ```{r}
 # Create datatable
 datatable(
@@ -318,7 +318,7 @@ datatable(
 
 While the state level analysis provides an insightful high level overview of fast food restaurant availability across the United States, it can prevent us from seeing substantial variation within states. Larger and more diverse states may have both urban counties with relatively low fast food density and rural counties with disproportionately higher fast food density when adjusted for population size. To better capture this local heterogeneity and identify potential counties with higher fast food density, let’s go on with a more granular view of the analysis and shift from state level to county level. Examining the joined dataset at the county level allows for a more granular understanding of how fast food restaurants are distributed and helps reveal patterns that may be more directly relevant to county level health problems like diabetes and obesity and quality food access that can tie in with the overarching question.
 
-Similar to the state level analysis, let's take a look at the choropleth map at the county level to see any patterns.
+Similar to the state level analysis, let’s take a closer look at the choropleth map at the county level to identify more localized patterns in fast food density. To do this, we aggregate census tract level fast food counts and population data up to the county level. We then load and join a U.S. county shapefile to visualize how fast food density varies across counties and to highlight regional clustering.
 ```{r}
 #State look up
 state_lookup <- states(year = 2019) |>
