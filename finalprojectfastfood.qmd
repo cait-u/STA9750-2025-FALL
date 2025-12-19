@@ -484,4 +484,10 @@ fastfood_map_county |>
 
 ## Conclusion
 
-In this project, the Green Apple team set out to explore fast food availability across the United States as part of the broader question: are food deserts in the U.S. linked to health problems like diabetes? By 
+In this project, the Green Apple team set out to explore fast food availability across the United States as part of the broader question: are food deserts in the U.S. linked to health problems like diabetes? By using fast food density at both the state and county levels, we found that fast food availability is highly uneven across the country and varies substantially within the states. While state level patterns highlighted broad regional trends, county-level analysis revealed localized pockets of high fast food density that would be hidden by state averages alone.
+
+At the county level, fast food density was strongly right skewed, with most counties exhibiting low density and a small number showing very high values. These high density counties were often rural and sparsely populated, where even a few fast food restaurants resulted in elevated per capita values. The highest ranked counties further shows that high fast food density does not necessarily indicate an abundance of fast food options, but may instead reflect limited access to alternative food outlets.
+
+The population versus density analysis helped tie these findings together by showing that counties with smaller populations tend to have higher fast food density, while larger counties cluster at much lower levels. This pattern suggests that elevated fast food exposure in some areas may be more indicative of limited food choice overall rather than an oversupply of fast food alone. From a food deserts perspective, this supports the idea that certain communities may face  constraints in accessing diverse and nutritious food options.
+
+Although this analysis does not directly test health outcomes such as diabetes, it provides important context for understanding how food environments are distributed across communities. By identifying where fast food exposure is concentrated and how population structure shapes per capita measures, this work lays the groundwork for future analyses that directly link food access, food deserts, and diet-related health outcomes.
