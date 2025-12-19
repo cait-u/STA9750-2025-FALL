@@ -18,9 +18,9 @@ execute:
 
 ## Introduction
 
-According to the [CDC](https://blogs.cdc.gov/nchs/2025/06/26/7784/), 32% of adults in the United States consume fast food on any given day between August 2021 and August 2023, making access to fast food a relevant factor when examining health related risks. This project analyzes fast food restaurant distribution across the country to answer the question: **How many fast food restaurants per capita are there in each state and county?**
+According to the [CDC](https://blogs.cdc.gov/nchs/2025/06/26/7784/), 32% of adults in the United States consumed fast food on any given day between August 2021 and August 2023, making access to fast food an important factor when examining potential health-related risks. This project analyzes the geographic distribution of fast food restaurants across the United States to answer the question: **How many fast food restaurants per capita are there in each state and county?**
 
-The motivation for this analysis is rooted in the overarching question: **Are food deserts in the US linked to health problems like diabetes?** For further information about this project and to see other analytical questions tied to this investigation, click [here](https://festrada0817.github.io/STA9750-2025-FALL/FinalProjectPresentation2025.html).
+The motivation for this analysis is rooted in the overarching question: **Are food deserts in the US linked to health problems like diabetes?** Understanding where fast food is most concentrated provides insight into differences in food access across communities and helps identify regions that have less quality or healthy food options. For further information about this project and to see other analytical questions tied to this investigation, click [here](https://festrada0817.github.io/STA9750-2025-FALL/FinalProjectPresentation2025.html).
 
 Using the **NaNDA: Eating and Drinking Places by Census Tract & ZCTA, 1990–2021** with the **U.S. Census Bureau American Community Survey B01003 (2019)**, the team analyze the availability of fast food restaurants across the United States and in which state and county can we find the highest density of fast food restaurants to support the team's overarching question.
 
@@ -33,6 +33,7 @@ library(tigris)
 library(sf)
 library(DT)
 library(janitor)
+library(tidycensus)
 
 # Cache shapefiles locally (faster repeat runs)
 options(tigris_use_cache = TRUE)
@@ -41,6 +42,7 @@ options(tigris_use_cache = TRUE)
 ### NaNDA: Eating and Drinking Places by Census Tract & ZCTA, 1990–2021
 
 To acquire the national fast food count per state and county, this project will use the [NaNDA: Eating and Drinking Places by Census Tract & ZCTA, 1990-2021](https://www.icpsr.umich.edu/sites/nanda/view/studies/208751) dataset and filter year 2019. The dataset at census tract level is used. NaNDA is the National Neighborhood Data Archive, providing counts and density of food establishments (restaurants, bars, fast food) from 1990-2021, sourced from the National Establishment Time Series (NETS) database. 
+
 Due to ICPSR access restrictions, NaNDA dataset was downloaded manually and created a reproducible import pipeline that verifies file availability and performs all subsequent processing steps.
 
 ```{r}
@@ -88,7 +90,23 @@ The [U.S. Census Bureau’s American Community Survey (ACS) Table B01003](https:
 
 ```{r}
 # Load dataset
-pop_2019 <- read_csv("ACSDT5Y2019.B01003-Data.csv")
+#pop_2019 <- read_csv("ACSDT5Y2019.B01003-Data.csv")
+
+pop_file <- file.path(
+  "data",
+  "finalprojectfastfood",
+  "ACSDT5Y2019.B01003-Data.csv"
+)
+if (!file.exists(pop_file)) {
+  stop(
+    "ACS data file not found.\n",
+    "Please download 'ACSDT5Y2019.B01003-Data.csv'",
+    "from https://data.census.gov/table/ACSDT5Y2019.B01003?q=Population+Total&g=010XX00US$1400000 and place it in:\n",
+    normalizePath(file.path("data", "finalprojectfastfood"))
+  )
+}
+
+pop_2019<- read_csv(pop_file, show_col_types = FALSE)
 ```
 
 ### Join Both Datasets
@@ -137,7 +155,7 @@ fastfood_tract |>
 
 ### Summary Statistics by Census Tract
 
-Looking at summary statistics helps 
+Looking at summary statistics helps understand the distribution of fast food availability across census tract.
 
 #### Fast Food Count
 
@@ -491,3 +509,5 @@ At the county level, fast food density was strongly right skewed, with most coun
 The population versus density analysis helped tie these findings together by showing that counties with smaller populations tend to have higher fast food density, while larger counties cluster at much lower levels. This pattern suggests that elevated fast food exposure in some areas may be more indicative of limited food choice overall rather than an oversupply of fast food alone. From a food deserts perspective, this supports the idea that certain communities may face  constraints in accessing diverse and nutritious food options.
 
 Although this analysis does not directly test health outcomes such as diabetes, it provides important context for understanding how food environments are distributed across communities. By identifying where fast food exposure is concentrated and how population structure shapes per capita measures, this work lays the groundwork for future analyses that directly link food access, food deserts, and diet-related health outcomes.
+
+In the overarching question report, the team  assess whether neighborhood food environments help explain variation in diabetes, we estimated a linear regression model of tract-level diabetes prevalence using median household income, fast food restaurant density, and a low-access food desert indicator as predictors. To see the results, see [here](https://festrada0817.github.io/STA9750-2025-FALL/FinalProjectPresentation2025.html#overall-findings).
