@@ -32,18 +32,45 @@ library(ggplot2)
 library(tigris)
 library(sf)
 library(DT)
+
+# Cache shapefiles locally (faster repeat runs)
+options(tigris_use_cache = TRUE)
 ```
 
 ### NaNDA: Eating and Drinking Places by Census Tract & ZCTA, 1990–2021
 
-To acquire the national fast food count per state and county, this project will use the [NaNDA: Eating and Drinking Places by Census Tract & ZCTA, 1990-2021](https://www.icpsr.umich.edu/sites/nanda/view/studies/208751) dataset and filter year 2019. The dataset at census tract level is used. NaNDA is the National Neighborhood Data Archive, providing counts and density of food establishments (restaurants, bars, fast food) from 1990-2021, sourced from the National Establishment Time Series (NETS) database.
+To acquire the national fast food count per state and county, this project will use the [NaNDA: Eating and Drinking Places by Census Tract & ZCTA, 1990-2021](https://www.icpsr.umich.edu/sites/nanda/view/studies/208751) dataset and filter year 2019. The dataset at census tract level is used. NaNDA is the National Neighborhood Data Archive, providing counts and density of food establishments (restaurants, bars, fast food) from 1990-2021, sourced from the National Establishment Time Series (NETS) database. 
+Due to ICPSR access restrictions, NaNDA dataset was downloaded manually and created a reproducible import pipeline that verifies file availability and performs all subsequent processing steps.
 
 ```{r}
-# Cache shapefiles locally (faster repeat runs)
-options(tigris_use_cache = TRUE)
+
+# Set up directory if it doesn't exist
+if (!dir.exists("data")) {
+  dir.create("data", recursive = TRUE)
+}
+
+if (!dir.exists(file.path("data", "finalprojectfastfood"))) {
+  dir.create(file.path("data", "finalprojectfastfood"), recursive = TRUE)
+}
+
+nanda_eatdrink <- file.path(
+  "data",
+  "finalprojectfastfood",
+  "nanda_eatdrink_Tract20_1990-2021_01P.csv"
+)
+# Checking if file exist in directory
+if (!file.exists(nanda_eatdrink)) {
+  stop(
+    "NaNDA data file not found.\n",
+    "Please download 'nanda_eatdrink_Tract20_1990-2021_01P.csv' ",
+    "from ICPSR Study 208751 and place it in:\n",
+    normalizePath(file.path("data", "finalprojectfastfood"))
+  )
+}
+
 
 # Load dataset and use only 2019 fast food count
-eatdrink_tract <- read_csv("nanda_eatdrink_Tract20_1990-2021_01P.csv")
+eatdrink_tract <- read_csv(nanda_eatdrink, show_col_types = FALSE)
 
 fastfood_raw <- eatdrink_tract |>
   filter(year == 2019) |>
@@ -113,7 +140,7 @@ Looking at summary statistics helps
 
 #### Fast Food Count
 
-The distribution of fast food restaurants across census tract is highly right skewered as there is a large number of census tracts with no fast food restaurants. As the number of restaurants increase, the number of census tract decreases rapidly. 
+The distribution of fast food restaurants across census tract is highly right skewed as there is a large number of census tracts with no fast food restaurants. As the number of restaurants increase, the number of census tract decreases rapidly. 
 ```{r}
 summary(fastfood_tract$count_fastfood)
 
@@ -124,6 +151,12 @@ fastfood_tract |>
     fill = "#9badff",
     color = "white",
     linewidth = 0.3
+  ) +
+  geom_vline(
+    xintercept = median(fastfood_tract$count_fastfood, na.rm = TRUE),
+    linetype = "dashed",
+    linewidth = 0.8,
+    color = "#0432FF"
   ) +
   labs(
     title = "Distribution of Fast Food Count by Census Tract",
@@ -191,7 +224,9 @@ fastfood_state <- fastfood_tract |>
     den_fastfood   = (total_fastfood / total_pop) * 1000,
     .groups = "drop"
   ) |>
-  filter(total_pop > 0)
+  filter(total_pop > 0, !is.na(den_fastfood))
+  
+
 
 # Load state shapefile and join
 state_shapes <- states(year = 2019, cb = TRUE) |>
@@ -260,8 +295,6 @@ datatable(
   formatRound("Total Population", 0, mark = ",") |>
   formatRound("Fast Food Count", 0)
 ```
-
-
 ### Fast Food Density by County
 
 While the state level analysis provides an insightful high level overview of fast food restaurant availability across the United States, it can prevent us from seeing substantial variation within states. Larger and more diverse states may have both urban counties with relatively low fast food density and rural counties with disproportionately higher fast food density when adjusted for population size. To better capture this local heterogeneity and identify potential counties with higher fast food density, let’s go on with a more granular view of the analysis and shift from state level to county level. Examining the joined dataset at the county level allows for a more granular understanding of how fast food restaurants are distributed and helps reveal patterns that may be more directly relevant to county level health problems like diabetes and obesity and quality food access that can tie in with the overarching question.
@@ -287,7 +320,8 @@ den_fastfood_county <- fastfood_tract |>
     den_fastfood   = (total_fastfood / total_pop) * 1000,
     .groups = "drop"
   ) |>
-  filter(total_pop > 0)
+  filter(total_pop > 0, !is.na(den_fastfood))
+
 
 # Load shapefile and join
 
@@ -302,6 +336,8 @@ fastfood_map_county <- county_shapes |>
   )
 ```
 #### Heat Map of Fast Food Density by County
+
+At the county level, the heatmap shows wide variation in fast food density within states. Counties shown in gray have zero fast food restaurants, while darker shades indicate higher fast food density. Several darker clusters appear in parts of Virginia, Mississippi, and Colorado, showing that some counties experience much higher fast food concentration than surrounding areas. Overall, the map highlights how food access can vary dramatically from one county to another, reinforcing the importance of looking at local, county patterns when analyzing and food deserts.
 ```{r}
 ggplot(fastfood_map_county) +
   geom_sf(aes(fill = den_fastfood), color = NA, linewidth = 0.1) +
@@ -322,7 +358,6 @@ ggplot(fastfood_map_county) +
   
   labs(
     title = "Fast Food Density by County",
-    subtitle = "County, 2019",
     caption = "Source: NaNDA Eating and Drinking Places by Census Tract & ZCTA, 1990–2021\nU.S. Census Bureau ACS B01003 (2019)"
   ) +
   
@@ -339,7 +374,13 @@ ggplot(fastfood_map_county) +
 ```
 
 #### Distribution of Fast Food Density per County
+
+The distribution of fast food density across U.S. counties is highly right skewed, indicating that most counties have relatively low fast food restaurants density. The median county has approximately 0.17 fast food restaurants per 1,000 people, reflecting the influence of a small number of high density counties. The first quartile is at zero, meaning that at least 25% of counties have no fast food restaurants recorded or extremely low density. In contrast, the maximum density reaches 1.82, highlighting the presence of extreme outliers. The histogram also shows that a majority of counties have zero fast food restaurants.
+
 ```{r}
+
+summary(fastfood_map_county$den_fastfood) 
+
 fastfood_map_county |>
   st_drop_geometry() |>
   ggplot(aes(x = den_fastfood)) +
@@ -349,10 +390,15 @@ fastfood_map_county |>
     color = "white",
     linewidth = 0.3
   ) +
-  coord_cartesian(xlim = c(0, 1)) + 
+  geom_vline(
+    xintercept = median(fastfood_map_county$den_fastfood, na.rm = TRUE),
+    linetype = "dashed",
+    linewidth = 0.8,
+    color = "#0432FF"
+  ) +
+  coord_cartesian() + 
   labs(
-    title = "Fast Food Restaurants per 1,000 People",
-    subtitle = "Distribution of Fast Food Density per County, 2019",
+    title = "Distribution of Fast Food Density per County",
     caption = "Source: NaNDA Eating and Drinking Places by Census Tract & ZCTA, 1990–2021\nU.S. Census Bureau ACS B01003 (2019)",
     x = "Fast Food Density",
     y = "# of Counties"
@@ -371,6 +417,8 @@ fastfood_map_county |>
 ```
 
 #### Top 10 Counties with the Highest Fast Food Density
+
+The counties with the highest fast food density are overwhelmingly small-population areas, where even a handful of fast food restaurants results in a high per-capita value. Teller County, Colorado ranks highest with just four fast food establishments serving a population of roughly 2,200, producing a density of 1.82 restaurants per 1,000 people. These counties are spread across a few states most notably Virginia, Mississippi, Georgia, and Colorado, noting that these are states in the South and the West. 
 ```{r}
 # Create datatable
 datatable(
@@ -385,7 +433,7 @@ datatable(
       `Total Population` = total_pop,
       `Fast Food Density` = den_fastfood
     ),
-  caption = "Fast Food Restaurants per 1,000 People by County (2019)",
+  caption = "Top 10 Counties with the Highest Fast Food Density",
   rownames = FALSE,
   options = list(
     pageLength = 10,
