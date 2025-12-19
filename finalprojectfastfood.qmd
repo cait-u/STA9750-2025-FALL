@@ -32,6 +32,7 @@ library(ggplot2)
 library(tigris)
 library(sf)
 library(DT)
+library(janitor)
 
 # Cache shapefiles locally (faster repeat runs)
 options(tigris_use_cache = TRUE)
@@ -295,7 +296,7 @@ datatable(
   formatRound("Total Population", 0, mark = ",") |>
   formatRound("Fast Food Count", 0)
 ```
-### Fast Food Density by County
+## Fast Food Density by County
 
 While the state level analysis provides an insightful high level overview of fast food restaurant availability across the United States, it can prevent us from seeing substantial variation within states. Larger and more diverse states may have both urban counties with relatively low fast food density and rural counties with disproportionately higher fast food density when adjusted for population size. To better capture this local heterogeneity and identify potential counties with higher fast food density, let’s go on with a more granular view of the analysis and shift from state level to county level. Examining the joined dataset at the county level allows for a more granular understanding of how fast food restaurants are distributed and helps reveal patterns that may be more directly relevant to county level health problems like diabetes and obesity and quality food access that can tie in with the overarching question.
 
@@ -445,6 +446,42 @@ datatable(
   formatRound("Fast Food Density", 2)
 ```
 
+#### Fast Food Density vs. County Population
 
+This scatter plot shows the relationship between county population size and fast food restaurant density. Counties with smaller populations tend to exhibit higher fast food density, while more populous counties cluster at lower density levels. This pattern suggests that higher fast food density in some counties may reflect limited food options overall, rather than an overabundance of fast food restaurants alone. 
+```{r}
+fastfood_map_county |>
+  st_drop_geometry() |>
+  ggplot(aes(x = total_pop, y = den_fastfood)) +
+  geom_point(
+    alpha = 0.15,
+    size = 1,
+    color = "#0432FF"
+  ) +
+  geom_smooth(
+    method = "lm",
+    se = FALSE,
+    linewidth = 1,
+    color = "#e792e7"
+  ) +
+  scale_x_continuous(labels = scales::comma) +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(
+    title = "Fast Food Density vs. County Population",
+    x = "County Population",
+    y = "Fast Food Restaurants per 1,000 People",
+    caption = "Source: NaNDA Eating and Drinking Places by Census Tract & ZCTA (1990–2021)\nU.S. Census Bureau ACS B01003 (2019)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5),
+    plot.margin = margin(5, 5, 5, 5),
+    plot.caption = element_text(size = 10, face = "italic", hjust = 0)
+  )
 
+```
 
+## Conclusion
+
+In this project, the Green Apple team set out to explore fast food availability across the United States as part of the broader question: are food deserts in the U.S. linked to health problems like diabetes? By 
