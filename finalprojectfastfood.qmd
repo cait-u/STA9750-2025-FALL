@@ -84,7 +84,7 @@ fastfood_tract <- fastfood_raw |>
 
 ## Data Exploration
 
-Let's look at the joined dataset. Now that we have both dataset combined, we can calculate the 
+Let’s take a closer look at the joined dataset. Now that the NaNDA fast food restaurants data and the ACS population data have been successfully combined at the census tract level, we can explore how fast food restaurant counts and population figures align geographically.The table below displays key variables for each census tract, including the tract FIPS code, GEOID, total population, and fast food restaurant count.
 
 ```{r}
 fastfood_tract |>
@@ -108,6 +108,8 @@ fastfood_tract |>
 ```
 
 ### Summary Statistics by Census Tract
+
+Looking at summary statistics helps 
 
 #### Fast Food Count
 
